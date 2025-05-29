@@ -19,7 +19,15 @@ s.post("https://www.instapaper.com/user/login", data={
 base = "./output/"
 
 def get_ids(page=1):
-    r = s.get("https://www.instapaper.com/u/" + str(page))
+    enable_folder_mode = os.getenv("ENABLE_FOLDER_MODE", False)
+    folder_id_and_slug = os.getenv("FOLDER_ID_AND_SLUG")
+
+    if enable_folder_mode:
+        r = s.get("https://www.instapaper.com/u/folder/" + folder_id_and_slug + '/' + str(page))
+    else:
+        # Default to the user's main page
+        # This will get all articles, not just those in a specific folder
+        r = s.get("https://www.instapaper.com/u/" + str(page))
     soup = BeautifulSoup(r.text, "html.parser")
 
     articles = soup.find(id="article_list").find_all("article")
