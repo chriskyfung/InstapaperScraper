@@ -20,7 +20,7 @@ class GetArticleIDs(AbstractTransaction):
         tuple: (ids, data, has_more)
     """
     def do(self, page):
-        enable_folder_mode = os.getenv("ENABLE_FOLDER_MODE", False)
+        enable_folder_mode = os.getenv("ENABLE_FOLDER_MODE", False).lower() in ("true", "1", "t")
         folder_id_and_slug = os.getenv("FOLDER_ID_AND_SLUG")
 
         if enable_folder_mode:
@@ -30,6 +30,10 @@ class GetArticleIDs(AbstractTransaction):
 
         r = self._driver.get(url)
         soup = BeautifulSoup(r.text, "html.parser")
+
+        if r.status_code != 200:
+            print(f"Failed to retrieve page {page}: {r.text}")
+            return [], [], False
 
         articles = soup.find(id="article_list").find_all("article")
         ids = [i["id"].replace("article_", "") for i in articles]
