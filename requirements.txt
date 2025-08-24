@@ -3,7 +3,7 @@ certifi==2025.4.26
 charset-normalizer==3.4.2
 guara==0.0.14
 idna==3.10
-python-dotenv==1.1.0
+python-dotenv==1.1.1
 requests==2.32.4
 soupsieve==2.7
 typing_extensions==4.13.2
