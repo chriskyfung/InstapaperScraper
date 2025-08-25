@@ -1,4 +1,4 @@
-beautifulsoup4==4.13.4
+beautifulsoup4==4.13.5
 certifi==2025.4.26
 charset-normalizer==3.4.3
 guara==0.0.14
