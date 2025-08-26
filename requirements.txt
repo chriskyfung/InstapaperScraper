@@ -6,5 +6,5 @@ idna==3.10
 python-dotenv==1.1.1
 requests==2.32.4
 soupsieve==2.7
-typing_extensions==4.13.2
+typing_extensions==4.15.0
 urllib3==2.4.0
