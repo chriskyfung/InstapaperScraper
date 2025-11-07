@@ -3,6 +3,8 @@
 
 import os
 import requests
+import sys
+import logging
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from guara.transaction import AbstractTransaction, Application
@@ -31,9 +33,7 @@ class GetArticleIDs(AbstractTransaction):
         r = self._driver.get(url)
         soup = BeautifulSoup(r.text, "html.parser")
 
-        if r.status_code != 200:
-            print(f"Failed to retrieve page {page}: {r.text}")
-            return [], [], False
+        r.raise_for_status()  # Will raise an HTTPError for bad responses (4xx or 5xx)
 
         article_list = soup.find(id="article_list")
         articles = article_list.find_all("article") if article_list else []
@@ -87,11 +87,16 @@ def run_instapaper_scraper():
     print("page,id,title,url")
     page = 1
     has_more = True
-
-    while has_more:
-        ids, data, has_more = app.at(GetArticleIDs, page=page).result
-        app.at(PrintArticlesInfo, data=data, page=page)
-        page += 1
+    
+    try:
+        while has_more:
+            logging.info(f"Scraping page {page}...")
+            ids, data, has_more = app.at(GetArticleIDs, page=page).result
+            app.at(PrintArticlesInfo, data=data, page=page)
+            page += 1
+    except requests.exceptions.RequestException as e:
+        logging.error(f"An HTTP error occurred: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
