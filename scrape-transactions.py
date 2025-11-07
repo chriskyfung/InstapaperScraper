@@ -35,7 +35,8 @@ class GetArticleIDs(AbstractTransaction):
             print(f"Failed to retrieve page {page}: {r.text}")
             return [], [], False
 
-        articles = soup.find(id="article_list").find_all("article")
+        article_list = soup.find(id="article_list")
+        articles = article_list.find_all("article") if article_list else []
         ids = [i["id"].replace("article_", "") for i in articles]
 
         data = []
@@ -43,7 +44,11 @@ class GetArticleIDs(AbstractTransaction):
             article = soup.find(id="article_" + i)
             title = article.find(class_="article_title").getText().strip()
             link = article.find(class_="title_meta").find("a")["href"]
-            data.append((i, title, link))
+            data.append({
+                "id": i,
+                "title": title,
+                "url": link
+            })
 
         has_more = soup.find(class_="paginate_older") is not None
         return ids, data, has_more
@@ -54,15 +59,17 @@ class PrintArticlesInfo(AbstractTransaction):
     Prints article information to stdout.
 
     Args:
-        data (list): List of (id, title, url) tuples.
+        data (list): List of article data dictionaries.
         page (int): Current page number.
 
     Returns:
         None
     """
     def do(self, data, page):
+        # Using the csv module would be even better for robust quoting
         for article in data:
-            print(f"Page {page},{article[0]},\"{article[1]}\",{article[2]}")
+            # Properly quote the title to handle commas within it
+            print(f"Page {page},{article['id']},\"{article['title']}\",{article['url']}")
 
 
 def run_instapaper_scraper():
