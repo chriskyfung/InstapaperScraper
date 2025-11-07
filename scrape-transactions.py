@@ -73,6 +73,7 @@ class PrintArticlesInfo(AbstractTransaction):
 
 
 def run_instapaper_scraper():
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     # Initialize session and login
     session = requests.Session()
     session.post("https://www.instapaper.com/user/login", data={
@@ -80,6 +81,12 @@ def run_instapaper_scraper():
         "password": os.getenv("INSTAPAPER_PASSWORD"),
         "keep_logged_in": "yes"
     })
+
+    # A simple check to see if login likely succeeded
+    verify_login = session.get("https://www.instapaper.com/u")
+    if "login_form" in verify_login.text:
+        logging.error("Login failed. Please check your INSTAPAPER_USERNAME and INSTAPAPER_PASSWORD.")
+        sys.exit(1)
 
     # Initialize application with session passed as the "driver"
     app = Application(session)
