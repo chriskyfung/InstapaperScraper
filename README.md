@@ -74,3 +74,7 @@ Major modifications include:
 
 ## Disclaimer
 This script requires **valid Instapaper credentials**. Be cautious when using personal account information and ensure compliance with Instapaper’s Terms of Service.
+
+## License
+
+This project is licensed under the terms of the GNU General Public License v3.0. See the [LICENSE.md](LICENSE.md) file for the full license text.
