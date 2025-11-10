@@ -3,6 +3,8 @@
 
 import os
 import requests
+import sys
+import logging
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from guara.transaction import AbstractTransaction, Application
@@ -31,11 +33,10 @@ class GetArticleIDs(AbstractTransaction):
         r = self._driver.get(url)
         soup = BeautifulSoup(r.text, "html.parser")
 
-        if r.status_code != 200:
-            print(f"Failed to retrieve page {page}: {r.text}")
-            return [], [], False
+        r.raise_for_status()  # Will raise an HTTPError for bad responses (4xx or 5xx)
 
-        articles = soup.find(id="article_list").find_all("article")
+        article_list = soup.find(id="article_list")
+        articles = article_list.find_all("article") if article_list else []
         ids = [i["id"].replace("article_", "") for i in articles]
 
         data = []
@@ -43,7 +44,11 @@ class GetArticleIDs(AbstractTransaction):
             article = soup.find(id="article_" + i)
             title = article.find(class_="article_title").getText().strip()
             link = article.find(class_="title_meta").find("a")["href"]
-            data.append((i, title, link))
+            data.append({
+                "id": i,
+                "title": title,
+                "url": link
+            })
 
         has_more = soup.find(class_="paginate_older") is not None
         return ids, data, has_more
@@ -54,18 +59,21 @@ class PrintArticlesInfo(AbstractTransaction):
     Prints article information to stdout.
 
     Args:
-        data (list): List of (id, title, url) tuples.
+        data (list): List of article data dictionaries.
         page (int): Current page number.
 
     Returns:
         None
     """
     def do(self, data, page):
+        # Using the csv module would be even better for robust quoting
         for article in data:
-            print(f"Page {page},{article[0]},\"{article[1]}\",{article[2]}")
+            # Properly quote the title to handle commas within it
+            print(f"Page {page},{article['id']},\"{article['title']}\",{article['url']}")
 
 
 def run_instapaper_scraper():
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     # Initialize session and login
     session = requests.Session()
     session.post("https://www.instapaper.com/user/login", data={
@@ -74,17 +82,28 @@ def run_instapaper_scraper():
         "keep_logged_in": "yes"
     })
 
+    # A simple check to see if login likely succeeded
+    verify_login = session.get("https://www.instapaper.com/u")
+    if "login_form" in verify_login.text:
+        logging.error("Login failed. Please check your INSTAPAPER_USERNAME and INSTAPAPER_PASSWORD.")
+        sys.exit(1)
+
     # Initialize application with session passed as the "driver"
     app = Application(session)
 
     print("page,id,title,url")
     page = 1
     has_more = True
-
-    while has_more:
-        ids, data, has_more = app.at(GetArticleIDs, page=page).result
-        app.at(PrintArticlesInfo, data=data, page=page)
-        page += 1
+    
+    try:
+        while has_more:
+            logging.info(f"Scraping page {page}...")
+            ids, data, has_more = app.at(GetArticleIDs, page=page).result
+            app.at(PrintArticlesInfo, data=data, page=page)
+            page += 1
+    except requests.exceptions.RequestException as e:
+        logging.error(f"An HTTP error occurred: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
