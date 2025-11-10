@@ -1,17 +1,18 @@
 # Instapaper Scraper
 
-This script allows users to **scrape** all saved Instapaper bookmarks and export them as **CSV data**.
+This script allows users to **scrape** all saved Instapaper bookmarks and export them as **CSV data**. This version uses a modular, transaction-based architecture.
 
 ## Features
 - Scrapes all bookmarks from your Instapaper home page.
-- Support scraping bookmarks from specific Instapaper folders
-- Export bookmarks metadata in CSV format
+- Support scraping bookmarks from specific Instapaper folders.
+- Export bookmarks metadata in CSV format.
 
 ## Requirements
 The following Python libraries are required:
 - `requests`
 - `beautifulsoup4`
 - `python-dotenv`
+- `guara`
 
 Install all dependencies using the provided requirements.txt:
 
@@ -42,10 +43,14 @@ pip install -r requirements.txt
 - `FOLDER_ID_AND_SLUG`: The folder ID and slug when folder mode is enabled
 
 ## How It Works
-1. **Authenticate**: Logs into Instapaper using your credentials
-2. **Extract Bookmarks**: Fetches bookmarks from either homepage or specific folder
-3. **Process Pages**: Iterates through all available pages of bookmarks
-4. **Output CSV**: Prints bookmark data in CSV format with headers
+The script is architected into modular, reusable "Transactions" that are executed by an Application runner.
+
+1. **Authenticate and Verify**: A `requests.Session` is created and logs into Instapaper using your credentials. The script verifies successful login and exits if authentication fails.
+2. **Initialize Application**: The session is passed to a `guara.transaction.Application` instance, which will manage the execution of scraping tasks.
+3. **Execute Transactions**: The application iterates through all bookmark pages, logging its progress, and repeatedly executing two transactions:
+    - `GetArticleIDs`: Fetches the article metadata from a single page, with robust error handling for network issues.
+    - `PrintArticlesInfo`: Prints the fetched data to the console in CSV format.
+4. **Output CSV**: Prints bookmark data in CSV format with headers.
 
 ## Example Output
 The script outputs CSV data with the following structure:
