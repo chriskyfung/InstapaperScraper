@@ -61,6 +61,20 @@ Page 1,999901234,"Article 1",https://www.example.com/page-1/
 Page 1,999002345,"Article 2",https://www.example.com/page-2/
 ```
 
+## Future Enhancements
+
+Below is a list of potential features and ideas for future development:
+
+- [ ] **Enhanced Folder Configuration:**
+
+  - [ ] Load `FOLDER_ID_AND_SLUG` from a command-line argument or a configuration file.
+  - [ ] Add validation for the `FOLDER_ID_AND_SLUG` format.
+  - [ ] Implement error handling for when folder mode is enabled without a valid folder identifier.
+  - [ ] Introduce an interactive prompt for folder selection if multiple options exist.
+
+- [ ] **Silent Output Mode:**
+  - [ ] Add a `--silent` flag to suppress `stdout` logging, which is useful when directing output to a file.
+
 ## Acknowledgments
 This script is **forked and modified** from:
 - [Original Gist by jaflo](https://gist.github.com/jaflo/description.md)
