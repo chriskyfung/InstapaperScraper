@@ -100,11 +100,17 @@ def run_instapaper_scraper():
                 logging.info(f"Successfully logged in using session cookies from {session_file}.")
                 logged_in = True
 
-    # If not logged in via session file, prompt for credentials
+    # If not logged in via session file, try .env or prompt for credentials
     if not logged_in:
         logging.info("No valid session found. Please log in.")
-        username = input("Enter your Instapaper username: ")
-        password = getpass.getpass("Enter your Instapaper password: ")
+        username = os.getenv("INSTAPAPER_USERNAME")
+        password = os.getenv("INSTAPAPER_PASSWORD")
+
+        if username and password:
+            logging.info(f"Using username '{username}' from environment variables.")
+        else:
+            username = input("Enter your Instapaper username: ")
+            password = getpass.getpass("Enter your Instapaper password: ")
         
         login_response = session.post("https://www.instapaper.com/user/login", data={
             "username": username,
