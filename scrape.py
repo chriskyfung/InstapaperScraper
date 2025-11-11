@@ -6,11 +6,31 @@ import requests
 import sys
 import logging
 import getpass
+import stat
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from guara.transaction import AbstractTransaction, Application
+from cryptography.fernet import Fernet
 
 load_dotenv()
+
+# --- Encryption Helper ---
+def get_encryption_key(key_file=".session_key"):
+    """
+    Loads the encryption key from a file or generates a new one.
+    Sets strict file permissions for the key file.
+    """
+    if os.path.exists(key_file):
+        with open(key_file, 'rb') as f:
+            key = f.read()
+    else:
+        key = Fernet.generate_key()
+        with open(key_file, 'wb') as f:
+            f.write(key)
+        # Set file permissions to 0600 (owner read/write only)
+        os.chmod(key_file, stat.S_IRUSR | stat.S_IWUSR)
+        logging.info(f"Generated new encryption key at {key_file}.")
+    return key
 
 class GetArticleIDs(AbstractTransaction):
     """
@@ -73,17 +93,25 @@ class PrintArticlesInfo(AbstractTransaction):
             print(f"Page {page},{article['id']},\"{article['title']}\",{article['url']}")
 
 
-def run_instapaper_scraper():
+def run_instapaper_scraper(session_file=".instapaper_session", key_file=".session_key"):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-    session_file = ".instapaper_session"
     session = requests.Session()
     logged_in = False
 
-    # Try to load session from file
+    # Initialize encryption
+    key = get_encryption_key(key_file)
+    fernet = Fernet(key)
+
+    # Try to load and decrypt session from file
     if os.path.exists(session_file):
-        with open(session_file, 'r') as f:
-            for line in f:
+        try:
+            with open(session_file, 'rb') as f:
+                encrypted_data = f.read()
+            
+            decrypted_data = fernet.decrypt(encrypted_data).decode('utf-8')
+            
+            for line in decrypted_data.splitlines():
                 line = line.strip()
                 if not line:
                     continue
@@ -92,13 +120,18 @@ def run_instapaper_scraper():
                 if len(parts) == 3:
                     name, value, domain = parts
                     session.cookies.set(name, value, domain=domain)
-        
-        # Verify session after loading all cookies
-        if session.cookies:
-            verify_response = session.get("https://www.instapaper.com/u")
-            if "login_form" not in verify_response.text:
-                logging.info(f"Successfully logged in using session cookies from {session_file}.")
-                logged_in = True
+            
+            # Verify session after loading all cookies
+            if session.cookies:
+                verify_response = session.get("https://www.instapaper.com/u")
+                if "login_form" not in verify_response.text:
+                    logging.info(f"Successfully logged in using encrypted session from {session_file}.")
+                    logged_in = True
+        except Exception as e:
+            logging.warning(f"Could not load session from {session_file}: {e}. A new session will be created.")
+            # If decryption fails, it's safest to delete the corrupt/invalid file
+            os.remove(session_file)
+
 
     # If not logged in via session file, try .env or prompt for credentials
     if not logged_in:
@@ -135,10 +168,19 @@ def run_instapaper_scraper():
         cookies_found = [c for c in session.cookies if c.name in required_cookies]
 
         if cookies_found:
-            with open(session_file, 'w') as f:
-                for cookie in cookies_found:
-                    f.write(f"{cookie.name}:{cookie.value}:{cookie.domain}\n")
-            logging.info(f"Saved session cookies to file.")
+            cookie_data = ""
+            for cookie in cookies_found:
+                cookie_data += f"{cookie.name}:{cookie.value}:{cookie.domain}\n"
+            
+            encrypted_data = fernet.encrypt(cookie_data.encode('utf-8'))
+            
+            with open(session_file, 'wb') as f:
+                f.write(encrypted_data)
+            
+            # Set file permissions to 0600 (owner read/write only)
+            os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
+            
+            logging.info(f"Saved encrypted session to {session_file}.")
             saved_cookie = True
         
         if not saved_cookie and not logged_in:
