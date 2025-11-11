@@ -5,6 +5,7 @@ import os
 import requests
 import sys
 import logging
+import getpass
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from guara.transaction import AbstractTransaction, Application
@@ -74,19 +75,68 @@ class PrintArticlesInfo(AbstractTransaction):
 
 def run_instapaper_scraper():
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    # Initialize session and login
-    session = requests.Session()
-    session.post("https://www.instapaper.com/user/login", data={
-        "username": os.getenv("INSTAPAPER_USERNAME"),
-        "password": os.getenv("INSTAPAPER_PASSWORD"),
-        "keep_logged_in": "yes"
-    })
 
-    # A simple check to see if login likely succeeded
-    verify_login = session.get("https://www.instapaper.com/u")
-    if "login_form" in verify_login.text:
-        logging.error("Login failed. Please check your INSTAPAPER_USERNAME and INSTAPAPER_PASSWORD.")
-        sys.exit(1)
+    session_file = ".instapaper_session"
+    session = requests.Session()
+    logged_in = False
+
+    # Try to load session from file
+    if os.path.exists(session_file):
+        with open(session_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                # Expect "name:value:domain"
+                parts = line.split(':', 2)
+                if len(parts) == 3:
+                    name, value, domain = parts
+                    session.cookies.set(name, value, domain=domain)
+        
+        # Verify session after loading all cookies
+        if session.cookies:
+            verify_response = session.get("https://www.instapaper.com/u")
+            if "login_form" not in verify_response.text:
+                logging.info(f"Successfully logged in using session cookies from {session_file}.")
+                logged_in = True
+
+    # If not logged in via session file, prompt for credentials
+    if not logged_in:
+        logging.info("No valid session found. Please log in.")
+        username = input("Enter your Instapaper username: ")
+        password = getpass.getpass("Enter your Instapaper password: ")
+        
+        login_response = session.post("https://www.instapaper.com/user/login", data={
+            "username": username,
+            "password": password,
+            "keep_logged_in": "yes"
+        })
+
+        # A successful login redirects to the user's article list page ("/u")
+        # and sets session cookies.
+        required_cookies = ["pfu", "pfp", "pfh"]
+        cookies_found = [c for c in session.cookies if c.name in required_cookies]
+
+        if "/u" in login_response.url and cookies_found:
+            logging.info("Login successful.")
+        else:
+            logging.error("Login failed. Please check your credentials.")
+            sys.exit(1)
+
+
+        # Save the session cookies for future runs
+        saved_cookie = False
+        cookies_found = [c for c in session.cookies if c.name in required_cookies]
+
+        if cookies_found:
+            with open(session_file, 'w') as f:
+                for cookie in cookies_found:
+                    f.write(f"{cookie.name}:{cookie.value}:{cookie.domain}\n")
+            logging.info(f"Saved session cookies to file.")
+            saved_cookie = True
+        
+        if not saved_cookie and not logged_in:
+            logging.warning("Could not find a known session cookie to save. Scraper will work for this session but not for future ones.")
 
     # Initialize application with session passed as the "driver"
     app = Application(session)
