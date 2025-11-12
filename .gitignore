@@ -204,3 +204,5 @@ pyrightconfig.json
 
 output/
 failed.txt
+.instapaper_session
+.session_key
