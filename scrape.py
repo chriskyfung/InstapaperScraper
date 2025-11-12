@@ -105,6 +105,7 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
 
     # Try to load and decrypt session from file
     if os.path.exists(session_file):
+        logging.info(f"Loading encrypted session from {session_file}...")
         try:
             with open(session_file, 'rb') as f:
                 encrypted_data = f.read()
@@ -125,7 +126,7 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
             if session.cookies:
                 verify_response = session.get("https://www.instapaper.com/u")
                 if "login_form" not in verify_response.text:
-                    logging.info(f"Successfully logged in using encrypted session from {session_file}.")
+                    logging.info(f"Successfully logged in using the loaded session data.")
                     logged_in = True
         except Exception as e:
             logging.warning(f"Could not load session from {session_file}: {e}. A new session will be created.")
