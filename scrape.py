@@ -7,12 +7,18 @@ import sys
 import logging
 import getpass
 import stat
+import time
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from guara.transaction import AbstractTransaction, Application
 from cryptography.fernet import Fernet
 
 load_dotenv()
+
+# --- Custom Exception ---
+class ScraperStructureChanged(Exception):
+    """Custom exception for when the scraper detects an HTML structure change."""
+    pass
 
 # --- Encryption Helper ---
 def get_encryption_key(key_file=".session_key"):
@@ -51,28 +57,90 @@ class GetArticleIDs(AbstractTransaction):
         else:
             url = f"https://www.instapaper.com/u/{page}"
 
-        r = self._driver.get(url)
-        soup = BeautifulSoup(r.text, "html.parser")
+        max_retries = int(os.getenv("MAX_RETRIES", 3))
+        backoff_factor = float(os.getenv("BACKOFF_FACTOR", 1))
+        last_exception = None
 
-        r.raise_for_status()  # Will raise an HTTPError for bad responses (4xx or 5xx)
+        for attempt in range(max_retries):
+            try:
+                r = self._driver.get(url, timeout=30)  # Add a timeout
+                r.raise_for_status()  # Will raise an HTTPError for bad responses (4xx or 5xx)
 
-        article_list = soup.find(id="article_list")
-        articles = article_list.find_all("article") if article_list else []
-        ids = [i["id"].replace("article_", "") for i in articles]
+                # If successful, proceed with parsing
+                soup = BeautifulSoup(r.text, "html.parser")
 
-        data = []
-        for i in ids:
-            article = soup.find(id="article_" + i)
-            title = article.find(class_="article_title").getText().strip()
-            link = article.find(class_="title_meta").find("a")["href"]
-            data.append({
-                "id": i,
-                "title": title,
-                "url": link
-            })
+                article_list = soup.find(id="article_list")
+                if not article_list:
+                    raise ScraperStructureChanged("Could not find article list ('#article_list'). The page structure may have changed.")
 
-        has_more = soup.find(class_="paginate_older") is not None
-        return ids, data, has_more
+                articles = article_list.find_all("article")
+                ids = [i["id"].replace("article_", "") for i in articles]
+
+                data = []
+                for i in ids:
+                    article = soup.find(id="article_" + i)
+                    try:
+                        title_element = article.find(class_="article_title")
+                        if not title_element:
+                            raise AttributeError("Title element not found")
+                        title = title_element.getText().strip()
+
+                        link_element = article.find(class_="title_meta").find("a")
+                        if not link_element or 'href' not in link_element.attrs:
+                            raise AttributeError("Link element or href not found")
+                        link = link_element["href"]
+
+                        data.append({
+                            "id": i,
+                            "title": title,
+                            "url": link
+                        })
+                    except AttributeError as e:
+                        logging.warning(f"Could not parse article with id {i} on page {page}. HTML structure might have changed. Details: {e}")
+                        continue  # Skip this article
+
+                has_more = soup.find(class_="paginate_older") is not None
+                return ids, data, has_more
+
+            except requests.exceptions.HTTPError as e:
+                last_exception = e
+                status_code = e.response.status_code
+
+                if status_code == 429:  # Too Many Requests
+                    wait_time = int(e.response.headers.get("Retry-After", 0))
+                    if wait_time > 0:
+                        logging.warning(f"Rate limited (429). Retrying after {wait_time} seconds as per Retry-After header.")
+                        time.sleep(wait_time)
+                    else:
+                        sleep_time = backoff_factor * (2 ** attempt)
+                        logging.warning(f"Rate limited (429). No Retry-After header. Retrying in {sleep_time:.2f} seconds.")
+                        time.sleep(sleep_time)
+                elif 500 <= status_code < 600:  # Server-side errors
+                    sleep_time = backoff_factor * (2 ** attempt)
+                    logging.warning(f"Request failed with status {status_code} (attempt {attempt + 1}/{max_retries}). Retrying in {sleep_time:.2f} seconds.")
+                    time.sleep(sleep_time)
+                else:  # Other client-side errors (4xx) are not worth retrying
+                    logging.error(f"Request failed with unrecoverable status code {status_code}.")
+                    raise e
+
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                last_exception = e
+                sleep_time = backoff_factor * (2 ** attempt)
+                logging.warning(f"Network error ({type(e).__name__}) on attempt {attempt + 1}/{max_retries}. Retrying in {sleep_time:.2f} seconds.")
+                time.sleep(sleep_time)
+            
+            except ScraperStructureChanged as e:
+                # This is a non-recoverable error for this transaction
+                logging.error(f"Scraping failed due to HTML structure change: {e}")
+                raise e
+
+        # If all retries fail
+        logging.error(f"All {max_retries} retries failed.")
+        if last_exception:
+            raise last_exception
+        else:
+            # This case should not be reached if there was an error, but as a fallback
+            raise Exception("Scraping failed after multiple retries for an unknown reason.")
 
 
 class PrintArticlesInfo(AbstractTransaction):
@@ -200,6 +268,9 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
             ids, data, has_more = app.at(GetArticleIDs, page=page).result
             app.at(PrintArticlesInfo, data=data, page=page)
             page += 1
+    except ScraperStructureChanged as e:
+        logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
+        sys.exit(1)
     except requests.exceptions.RequestException as e:
         logging.error(f"An HTTP error occurred: {e}")
         sys.exit(1)
