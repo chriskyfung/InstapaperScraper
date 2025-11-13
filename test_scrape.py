@@ -1,8 +1,11 @@
 import unittest
 import os
 import stat
+import json
+import sqlite3
 from unittest.mock import patch, mock_open
 from cryptography.fernet import Fernet
+from requests.cookies import create_cookie, RequestsCookieJar
 
 # It's generally better to import the functions/classes you are testing
 from scrape import get_encryption_key, run_instapaper_scraper
@@ -49,8 +52,7 @@ class TestEncryption(unittest.TestCase):
         and can be successfully decrypted on a subsequent run.
         """
         # --- First run: Login and save session ---
-        from requests.cookies import create_cookie, RequestsCookieJar
-
+        
         # Mock user input and login success
         mock_input.return_value = "testuser"
         mock_getpass.return_value = "testpass"
@@ -70,8 +72,8 @@ class TestEncryption(unittest.TestCase):
             # Make the first call to GetArticleIDs return has_more=False
             mock_app.return_value.result = ([], [], False)
             
-            # Run the scraper, passing the test file names
-            run_instapaper_scraper(session_file=self.session_file, key_file=self.key_file)
+            # Run the scraper, passing the test file names and empty argv
+            run_instapaper_scraper(session_file=self.session_file, key_file=self.key_file, argv=[])
 
         # Verify that the session file was written
         self.assertTrue(os.path.exists(self.session_file))
@@ -100,7 +102,7 @@ class TestEncryption(unittest.TestCase):
         with patch('scrape.Application.at') as mock_app:
             mock_app.return_value.result = ([], [], False)
             # Run scraper again; it should now load from the created session file
-            run_instapaper_scraper(session_file=self.session_file, key_file=self.key_file)
+            run_instapaper_scraper(session_file=self.session_file, key_file=self.key_file, argv=[])
 
         # Check that the session cookies were loaded correctly
         # This is an indirect check, but we can see if the login flow was skipped.
@@ -109,6 +111,100 @@ class TestEncryption(unittest.TestCase):
         # Check that the loaded cookies are in the session
         self.assertEqual(len(mock_session.cookies), 3)
         self.assertEqual(mock_session.cookies['pfu'], 'test_pfu')
+
+
+class TestOutputFormats(unittest.TestCase):
+    def setUp(self):
+        self.output_dir = "output"
+        self.csv_file = os.path.join(self.output_dir, "bookmarks.csv")
+        self.json_file = os.path.join(self.output_dir, "bookmarks.json")
+        self.db_file = os.path.join(self.output_dir, "bookmarks.db")
+        
+        # Clean up output files before each test
+        for f in [self.csv_file, self.json_file, self.db_file]:
+            if os.path.exists(f):
+                os.remove(f)
+
+        self.sample_articles = [
+            {'id': '1', 'title': 'Article One', 'url': 'http://example.com/1'},
+            {'id': '2', 'title': 'Article Two, with comma', 'url': 'http://example.com/2'},
+        ]
+        self.test_key = Fernet.generate_key()
+
+    def tearDown(self):
+        # Clean up output files after each test
+        for f in [self.csv_file, self.json_file, self.db_file]:
+            if os.path.exists(f):
+                os.remove(f)
+
+    @patch('scrape.Application.at')
+    @patch('scrape.get_encryption_key')
+    @patch('scrape.requests.Session')
+    def test_csv_output(self, mock_session_cls, mock_get_key, mock_app_at):
+        """Test that data is correctly written to a CSV file."""
+        mock_get_key.return_value = self.test_key
+        mock_app_at.return_value.result = ([], self.sample_articles, False)
+        
+        mock_session = mock_session_cls.return_value
+        mock_session.post.return_value.url = "/u"
+        mock_session.cookies = RequestsCookieJar()
+        mock_session.cookies.set_cookie(create_cookie(name='pfu', value='test_pfu', domain='.instapaper.com'))
+
+        run_instapaper_scraper(argv=['--format', 'csv'])
+
+        self.assertTrue(os.path.exists(self.csv_file))
+        with open(self.csv_file, 'r') as f:
+            lines = f.readlines()
+            self.assertEqual(lines[0].strip(), "id,title,url")
+            self.assertEqual(lines[1].strip(), "1,Article One,http://example.com/1")
+            self.assertEqual(lines[2].strip(), '2,"Article Two, with comma",http://example.com/2')
+
+    @patch('scrape.Application.at')
+    @patch('scrape.get_encryption_key')
+    @patch('scrape.requests.Session')
+    def test_json_output(self, mock_session_cls, mock_get_key, mock_app_at):
+        """Test that data is correctly written to a JSON file."""
+        mock_get_key.return_value = self.test_key
+        mock_app_at.return_value.result = ([], self.sample_articles, False)
+
+        mock_session = mock_session_cls.return_value
+        mock_session.post.return_value.url = "/u"
+        mock_session.cookies = RequestsCookieJar()
+        mock_session.cookies.set_cookie(create_cookie(name='pfu', value='test_pfu', domain='.instapaper.com'))
+
+        run_instapaper_scraper(argv=['--format', 'json'])
+
+        self.assertTrue(os.path.exists(self.json_file))
+        with open(self.json_file, 'r') as f:
+            data = json.load(f)
+            self.assertEqual(data, self.sample_articles)
+
+    @patch('scrape.Application.at')
+    @patch('scrape.get_encryption_key')
+    @patch('scrape.requests.Session')
+    def test_sqlite_output(self, mock_session_cls, mock_get_key, mock_app_at):
+        """Test that data is correctly written to a SQLite database."""
+        mock_get_key.return_value = self.test_key
+        mock_app_at.return_value.result = ([], self.sample_articles, False)
+
+        mock_session = mock_session_cls.return_value
+        mock_session.post.return_value.url = "/u"
+        mock_session.cookies = RequestsCookieJar()
+        mock_session.cookies.set_cookie(create_cookie(name='pfu', value='test_pfu', domain='.instapaper.com'))
+
+        run_instapaper_scraper(argv=['--format', 'sqlite'])
+
+        self.assertTrue(os.path.exists(self.db_file))
+        
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title, url FROM articles ORDER BY id ASC")
+        rows = cursor.fetchall()
+        conn.close()
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0], ('1', 'Article One', 'http://example.com/1'))
+        self.assertEqual(rows[1], ('2', 'Article Two, with comma', 'http://example.com/2'))
 
 
 if __name__ == '__main__':
