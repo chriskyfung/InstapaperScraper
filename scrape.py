@@ -197,9 +197,19 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
         default="csv",
         help="Output format (default: csv)"
     )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output filename. If not provided, defaults to output/bookmarks.{format}"
+    )
     if argv is None:
         argv = sys.argv[1:]
     args = parser.parse_args(argv)
+
+    # Determine output filename
+    output_filename = args.output
+    if not output_filename:
+        ext = "db" if args.format == "sqlite" else args.format
+        output_filename = f"output/bookmarks.{ext}"
 
     session = requests.Session()
     logged_in = False
@@ -315,11 +325,11 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
 
     if all_articles:
         if args.format == "csv":
-            save_to_csv(all_articles)
+            save_to_csv(all_articles, filename=output_filename)
         elif args.format == "json":
-            save_to_json(all_articles)
+            save_to_json(all_articles, filename=output_filename)
         elif args.format == "sqlite":
-            save_to_sqlite(all_articles)
+            save_to_sqlite(all_articles, db_name=output_filename)
     else:
         logging.info("No articles found to save.")
 
