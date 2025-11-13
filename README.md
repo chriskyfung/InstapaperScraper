@@ -58,6 +58,7 @@ You can specify the output format using the `--format` command-line argument. Th
 - `csv` (default): Exports data to `output/bookmarks.csv`.
 - `json`: Exports data to `output/bookmarks.json`.
 - `sqlite`: Exports data to an `articles` table in `output/bookmarks.db`.
+- `--output <filename>`: Specify a custom output filename.
 
 **Example Usage:**
 
@@ -65,8 +66,8 @@ You can specify the output format using the `--format` command-line argument. Th
 # Export to JSON
 python scrape.py --format json
 
-# Export to a SQLite database
-python scrape.py --format sqlite
+# Export to a SQLite database with a custom name
+python scrape.py --format sqlite --output my_articles.db
 ```
 
 If the `--format` flag is omitted, the script will default to `csv`.
