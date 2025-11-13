@@ -206,6 +206,36 @@ class TestOutputFormats(unittest.TestCase):
         self.assertEqual(rows[0], ('1', 'Article One', 'http://example.com/1'))
         self.assertEqual(rows[1], ('2', 'Article Two, with comma', 'http://example.com/2'))
 
+    @patch('scrape.Application.at')
+    @patch('scrape.get_encryption_key')
+    @patch('scrape.requests.Session')
+    def test_custom_output_filename(self, mock_session_cls, mock_get_key, mock_app_at):
+        """Test that a custom output filename is used when provided."""
+        mock_get_key.return_value = self.test_key
+        mock_app_at.return_value.result = ([], self.sample_articles, False)
+
+        mock_session = mock_session_cls.return_value
+        mock_session.post.return_value.url = "/u"
+        mock_session.cookies = RequestsCookieJar()
+        mock_session.cookies.set_cookie(create_cookie(name='pfu', value='test_pfu', domain='.instapaper.com'))
+
+        custom_filename = os.path.join(self.output_dir, "my_articles.json")
+        if os.path.exists(custom_filename):
+            os.remove(custom_filename)
+
+        run_instapaper_scraper(argv=['--format', 'json', '--output', custom_filename])
+
+        self.assertTrue(os.path.exists(custom_filename))
+        self.assertFalse(os.path.exists(self.json_file)) # Default should not be created
+
+        with open(custom_filename, 'r') as f:
+            data = json.load(f)
+            self.assertEqual(data, self.sample_articles)
+
+        # Clean up the custom file
+        if os.path.exists(custom_filename):
+            os.remove(custom_filename)
+
 
 if __name__ == '__main__':
     unittest.main()
