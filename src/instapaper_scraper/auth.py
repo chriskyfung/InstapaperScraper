@@ -6,6 +6,43 @@ from cryptography.fernet import Fernet
 import requests
 
 
+# --- Constants ---
+class InstapaperConstants:
+    # URLs
+    INSTAPAPER_BASE_URL = "https://www.instapaper.com"
+    INSTAPAPER_VERIFY_URL = f"{INSTAPAPER_BASE_URL}/u"
+    INSTAPAPER_LOGIN_URL = f"{INSTAPAPER_BASE_URL}/user/login"
+
+    # Session/Cookie related
+    COOKIE_PART_COUNT = 3
+    REQUIRED_COOKIES = {"pfu", "pfp", "pfh"}
+    LOGIN_FORM_IDENTIFIER = "login_form"
+    LOGIN_SUCCESS_PATH = "/u"
+
+    # Request related
+    REQUEST_TIMEOUT = 10
+
+    # Environment variables
+    ENV_USERNAME = "INSTAPAPER_USERNAME"
+    ENV_PASSWORD = "INSTAPAPER_PASSWORD"
+
+    # Prompts
+    PROMPT_USERNAME = "Enter your Instapaper username: "
+    PROMPT_PASSWORD = "Enter your Instapaper password: "
+
+    # Log messages
+    LOG_NO_VALID_SESSION = "No valid session found. Please log in."
+    LOG_USING_ENV_USERNAME = "Using username '{username}' from environment variables."
+    LOG_LOGIN_SUCCESS = "Login successful."
+    LOG_LOGIN_FAILED = "Login failed. Please check your credentials."
+    LOG_SESSION_LOAD_SUCCESS = "Successfully logged in using the loaded session data."
+    LOG_SESSION_LOAD_FAILED = "Session loaded but verification failed."
+    LOG_SESSION_LOAD_ERROR = "Could not load session from {session_file}: {e}. A new session will be created."
+    LOG_SESSION_VERIFY_FAILED = "Session verification request failed: {e}"
+    LOG_NO_KNOWN_COOKIE_TO_SAVE = "Could not find a known session cookie to save."
+    LOG_SAVED_SESSION = "Saved encrypted session to {session_file}."
+
+
 # --- Encryption Helper ---
 def get_encryption_key(key_file: str = ".session_key") -> bytes:
     """
@@ -70,22 +107,24 @@ class InstapaperAuthenticator:
                 if not line:
                     continue
                 parts = line.split(":", 2)
-                if len(parts) == 3:
+                if len(parts) == InstapaperConstants.COOKIE_PART_COUNT:
                     name, value, domain = parts
                     self.session.cookies.set(name, value, domain=domain)
 
             if self.session.cookies and self._verify_session():
-                logging.info("Successfully logged in using the loaded session data.")
+                logging.info(InstapaperConstants.LOG_SESSION_LOAD_SUCCESS)
                 return True
             else:
-                logging.warning("Session loaded but verification failed.")
+                logging.warning(InstapaperConstants.LOG_SESSION_LOAD_FAILED)
                 # Clear cookies if verification fails
                 self.session.cookies.clear()
                 return False
 
         except Exception as e:
             logging.warning(
-                f"Could not load session from {self.session_file}: {e}. A new session will be created."
+                InstapaperConstants.LOG_SESSION_LOAD_ERROR.format(
+                    session_file=self.session_file, e=e
+                )
             )
             os.remove(self.session_file)
             return False
@@ -94,51 +133,57 @@ class InstapaperAuthenticator:
         """Checks if the current session is valid by making a request."""
         try:
             verify_response = self.session.get(
-                "https://www.instapaper.com/u", timeout=10
+                InstapaperConstants.INSTAPAPER_VERIFY_URL,
+                timeout=InstapaperConstants.REQUEST_TIMEOUT,
             )
             verify_response.raise_for_status()
-            return "login_form" not in verify_response.text
+            return InstapaperConstants.LOGIN_FORM_IDENTIFIER not in verify_response.text
         except requests.RequestException as e:
-            logging.error(f"Session verification request failed: {e}")
+            logging.error(InstapaperConstants.LOG_SESSION_VERIFY_FAILED.format(e=e))
             return False
 
     def _login_with_credentials(self) -> bool:
         """Logs in using username/password from .env or user prompt."""
-        logging.info("No valid session found. Please log in.")
-        username = os.getenv("INSTAPAPER_USERNAME")
-        password = os.getenv("INSTAPAPER_PASSWORD")
+        logging.info(InstapaperConstants.LOG_NO_VALID_SESSION)
+        username = os.getenv(InstapaperConstants.ENV_USERNAME)
+        password = os.getenv(InstapaperConstants.ENV_PASSWORD)
 
         if username and password:
-            logging.info(f"Using username '{username}' from environment variables.")
+            logging.info(
+                InstapaperConstants.LOG_USING_ENV_USERNAME.format(username=username)
+            )
         else:
-            username = input("Enter your Instapaper username: ")
-            password = getpass.getpass("Enter your Instapaper password: ")
+            username = input(InstapaperConstants.PROMPT_USERNAME)
+            password = getpass.getpass(InstapaperConstants.PROMPT_PASSWORD)
 
         login_response = self.session.post(
-            "https://www.instapaper.com/user/login",
+            InstapaperConstants.INSTAPAPER_LOGIN_URL,
             data={"username": username, "password": password, "keep_logged_in": "yes"},
-            timeout=10,
+            timeout=InstapaperConstants.REQUEST_TIMEOUT,
         )
 
-        required_cookies = {"pfu", "pfp", "pfh"}
+        required_cookies = InstapaperConstants.REQUIRED_COOKIES
         found_cookies = {c.name for c in self.session.cookies}
 
-        if "/u" in login_response.url and required_cookies.issubset(found_cookies):
-            logging.info("Login successful.")
+        if (
+            InstapaperConstants.LOGIN_SUCCESS_PATH in login_response.url
+            and required_cookies.issubset(found_cookies)
+        ):
+            logging.info(InstapaperConstants.LOG_LOGIN_SUCCESS)
             return True
         else:
-            logging.error("Login failed. Please check your credentials.")
+            logging.error(InstapaperConstants.LOG_LOGIN_FAILED)
             return False
 
     def _save_session(self):
         """Saves the current session cookies to an encrypted file."""
-        required_cookies = ["pfu", "pfp", "pfh"]
+        required_cookies = InstapaperConstants.REQUIRED_COOKIES
         cookies_to_save = [
             c for c in self.session.cookies if c.name in required_cookies
         ]
 
         if not cookies_to_save:
-            logging.warning("Could not find a known session cookie to save.")
+            logging.warning(InstapaperConstants.LOG_NO_KNOWN_COOKIE_TO_SAVE)
             return
 
         cookie_data = ""
@@ -151,4 +196,6 @@ class InstapaperAuthenticator:
             f.write(encrypted_data)
 
         os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
-        logging.info(f"Saved encrypted session to {self.session_file}.")
+        logging.info(
+            InstapaperConstants.LOG_SAVED_SESSION.format(session_file=self.session_file)
+        )
