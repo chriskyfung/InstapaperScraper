@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "instapaper-scraper"
+version = "2.0.0"
+description = "A tool to scrape articles from Instapaper."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "beautifulsoup4==4.14.2",
+    "certifi==2025.11.12",
+    "charset-normalizer==3.4.3",
+    "cryptography==46.0.3",
+    "guara==0.0.14",
+    "idna==3.11",
+    "python-dotenv==1.2.1",
+    "requests==2.32.5",
+    "soupsieve==2.8",
+    "typing_extensions==4.15.0",
+    "urllib3==2.5.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/user/instapaper-scraper"
+"Bug Tracker" = "https://github.com/user/instapaper-scraper/issues"
+
+[project.scripts]
+instapaper-scraper = "instapaper_scraper.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "types-requests",
+    "types-beautifulsoup4",
+    "requests-mock",
+]
