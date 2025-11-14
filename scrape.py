@@ -7,6 +7,9 @@ import sys
 import logging
 import getpass
 import stat
+import argparse
+import json
+import sqlite3
 import time
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -143,26 +146,70 @@ class GetArticleIDs(AbstractTransaction):
             raise Exception("Scraping failed after multiple retries for an unknown reason.")
 
 
-class PrintArticlesInfo(AbstractTransaction):
-    """
-    Prints article information to stdout.
-
-    Args:
-        data (list): List of article data dictionaries.
-        page (int): Current page number.
-
-    Returns:
-        None
-    """
-    def do(self, data, page):
-        # Using the csv module would be even better for robust quoting
+def save_to_csv(data, filename="output/bookmarks.csv"):
+    """Saves a list of articles to a CSV file."""
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "w", newline="", encoding="utf-8") as f:
+        f.write("id,title,url\n")
         for article in data:
-            # Properly quote the title to handle commas within it
-            print(f"Page {page},{article['id']},\"{article['title']}\",{article['url']}")
+            # Basic CSV quoting for titles with commas
+            title = article['title']
+            if ',' in title:
+                title = f'"{title}"'
+            f.write(f"{article['id']},{title},{article['url']}\n")
+    logging.info(f"Saved {len(data)} articles to {filename}")
+
+def save_to_json(data, filename="output/bookmarks.json"):
+    """Saves a list of articles to a JSON file."""
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+    logging.info(f"Saved {len(data)} articles to {filename}")
+
+def save_to_sqlite(data, db_name="output/bookmarks.db"):
+    """Saves a list of articles to a SQLite database."""
+    os.makedirs(os.path.dirname(db_name), exist_ok=True)
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS articles (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL
+        )
+    """)
+    cursor.executemany(
+        "INSERT OR REPLACE INTO articles (id, title, url) VALUES (:id, :title, :url)",
+        data
+    )
+    conn.commit()
+    conn.close()
+    logging.info(f"Saved {len(data)} articles to {db_name}")
 
 
-def run_instapaper_scraper(session_file=".instapaper_session", key_file=".session_key"):
+def run_instapaper_scraper(session_file=".instapaper_session", key_file=".session_key", argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+    parser = argparse.ArgumentParser(description="Scrape Instapaper articles.")
+    parser.add_argument(
+        "--format",
+        choices=["csv", "json", "sqlite"],
+        default="csv",
+        help="Output format (default: csv)"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Output filename. If not provided, defaults to output/bookmarks.{format}"
+    )
+    if argv is None:
+        argv = sys.argv[1:]
+    args = parser.parse_args(argv)
+
+    # Determine output filename
+    output_filename = args.output
+    if not output_filename:
+        ext = "db" if args.format == "sqlite" else args.format
+        output_filename = f"output/bookmarks.{ext}"
 
     session = requests.Session()
     logged_in = False
@@ -258,15 +305,16 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
     # Initialize application with session passed as the "driver"
     app = Application(session)
 
-    print("page,id,title,url")
+    all_articles = []
     page = 1
     has_more = True
     
     try:
         while has_more:
             logging.info(f"Scraping page {page}...")
-            ids, data, has_more = app.at(GetArticleIDs, page=page).result
-            app.at(PrintArticlesInfo, data=data, page=page)
+            _, data, has_more = app.at(GetArticleIDs, page=page).result
+            if data:
+                all_articles.extend(data)
             page += 1
     except ScraperStructureChanged as e:
         logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
@@ -274,6 +322,16 @@ def run_instapaper_scraper(session_file=".instapaper_session", key_file=".sessio
     except requests.exceptions.RequestException as e:
         logging.error(f"An HTTP error occurred: {e}")
         sys.exit(1)
+
+    if all_articles:
+        if args.format == "csv":
+            save_to_csv(all_articles, filename=output_filename)
+        elif args.format == "json":
+            save_to_json(all_articles, filename=output_filename)
+        elif args.format == "sqlite":
+            save_to_sqlite(all_articles, db_name=output_filename)
+    else:
+        logging.info("No articles found to save.")
 
 
 if __name__ == "__main__":
