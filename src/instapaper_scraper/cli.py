@@ -5,6 +5,7 @@ import requests
 import tomli
 from pathlib import Path
 from dotenv import load_dotenv
+from typing import Union
 
 from . import __version__
 from .auth import InstapaperAuthenticator
@@ -13,7 +14,7 @@ from .output import save_articles
 from .exceptions import ScraperStructureChanged
 
 
-def load_config(config_path_str: str | None = None) -> dict | None:
+def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
     """
     Loads configuration from a TOML file.
     It checks the provided path, then ~/.config/instapaper-scraper/config.toml,
