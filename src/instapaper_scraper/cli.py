@@ -40,6 +40,7 @@ def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
             except tomli.TOMLDecodeError as e:
                 logging.error(f"Error decoding TOML file at {path}: {e}")
                 return None
+    logging.info("No configuration file found at any default location.")
     return None
 
 
