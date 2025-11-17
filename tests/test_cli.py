@@ -122,3 +122,21 @@ def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
 
     assert e.value.code == 1
     assert "Stopping scraper due to an unrecoverable error: HTML changed" in caplog.text
+
+
+@pytest.mark.parametrize("version_flag", ["--version", "-v"])
+def test_cli_version_flag(monkeypatch, capsys, version_flag):
+    """Test that the CLI prints the version and exits."""
+    # --- Arrange ---
+    # Mock the __version__ to a known value
+    monkeypatch.setattr("instapaper_scraper.__version__", "2.0.0")
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", version_flag])
+
+    # --- Act & Assert ---
+    with pytest.raises(SystemExit) as e:
+        cli.main()
+
+    assert e.value.code == 0  # Successful exit
+
+    captured = capsys.readouterr()
+    assert "instapaper-scraper 2.0.0" in captured.out

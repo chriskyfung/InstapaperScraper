@@ -4,6 +4,7 @@ import argparse
 import requests
 from dotenv import load_dotenv
 
+from . import __version__
 from .auth import InstapaperAuthenticator
 from .api import InstapaperClient
 from .output import save_articles
@@ -18,6 +19,13 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     parser = argparse.ArgumentParser(description="Scrape Instapaper articles.")
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show program's version number and exit.",
+    )
     parser.add_argument(
         "--format",
         choices=["csv", "json", "sqlite"],
