@@ -46,6 +46,7 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch):
 
     # --- Assert ---
     # Authenticator was called
+    mock_auth.assert_called_once()
     mock_auth.return_value.login.assert_called_once()
 
     # Client was called
@@ -104,6 +105,36 @@ def test_cli_custom_output_file(mock_auth, mock_client, mock_save, monkeypatch):
     cli.main()
 
     mock_save.assert_called_once_with([], "json", custom_file)
+
+
+def test_cli_custom_auth_files(mock_auth, mock_client, mock_save, monkeypatch):
+    """Test that custom session and key files are passed to the authenticator."""
+    mock_auth.return_value.login.return_value = True
+    mock_client.return_value.get_all_articles.return_value = []
+
+    session_file = "my_session.file"
+    key_file = "my_key.file"
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "instapaper-scraper",
+            "--session-file",
+            session_file,
+            "--key-file",
+            key_file,
+        ],
+    )
+
+    cli.main()
+
+    # Check that the authenticator was initialized with the custom file paths
+    mock_auth.assert_called_once()
+    # The first positional argument is the session object
+    # The keyword arguments are what we are interested in
+    called_kwargs = mock_auth.call_args.kwargs
+    assert called_kwargs.get("session_file") == session_file
+    assert called_kwargs.get("key_file") == key_file
 
 
 def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
