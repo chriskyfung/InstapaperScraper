@@ -14,7 +14,7 @@ A Python script to scrape all your saved Instapaper bookmarks and export them to
 ## Getting Started
 
 ### 1. Requirements
-- Python 3.6+
+- Python 3.9+
 - The following Python libraries:
   - `requests`
   - `beautifulsoup4`
