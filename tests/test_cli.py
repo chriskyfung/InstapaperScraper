@@ -137,6 +137,34 @@ def test_cli_custom_auth_files(mock_auth, mock_client, mock_save, monkeypatch):
     assert called_kwargs.get("key_file") == key_file
 
 
+def test_cli_custom_credentials(mock_auth, mock_client, mock_save, monkeypatch):
+    """Test that custom username and password are passed to the authenticator."""
+    mock_auth.return_value.login.return_value = True
+    mock_client.return_value.get_all_articles.return_value = []
+
+    username = "cli_user"
+    password = "cli_password"
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "instapaper-scraper",
+            "--username",
+            username,
+            "--password",
+            password,
+        ],
+    )
+
+    cli.main()
+
+    # Check that the authenticator was initialized with the custom credentials
+    mock_auth.assert_called_once()
+    called_kwargs = mock_auth.call_args.kwargs
+    assert called_kwargs.get("username") == username
+    assert called_kwargs.get("password") == password
+
+
 def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
     """Test that the CLI handles exceptions from the scraper client."""
     from instapaper_scraper.exceptions import ScraperStructureChanged
