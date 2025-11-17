@@ -197,16 +197,13 @@ def test_4xx_error_does_not_retry(client, session):
         assert m.call_count == 1
 
 
-def test_folder_mode_url_construction(client, session, monkeypatch):
+def test_folder_mode_url_construction(client, session):
     """Test that the URL is correctly constructed when in folder mode."""
-    monkeypatch.setenv("ENABLE_FOLDER_MODE", "true")
-    monkeypatch.setenv("FOLDER_ID_AND_SLUG", "12345/my-folder")
-
     with requests_mock.Mocker() as m:
         expected_url = "https://www.instapaper.com/u/folder/12345/my-folder/1"
         m.get(expected_url, text=get_mock_html(1))
 
-        client.get_articles(page=1)
+        client.get_articles(page=1, folder_info={"id": "12345", "slug": "my-folder"})
 
         assert m.called
         assert m.last_request.url == expected_url
