@@ -43,6 +43,12 @@ def main():
     parser.add_argument("--key-file", help="Path to the session key file.")
     parser.add_argument("--username", help="Instapaper username.")
     parser.add_argument("--password", help="Instapaper password.")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of pages to scrape (default: unlimited)",
+    )
     args = parser.parse_args()
 
     # Determine output filename
@@ -71,7 +77,7 @@ def main():
     # 2. Scrape Articles
     client = InstapaperClient(session)
     try:
-        all_articles = client.get_all_articles()
+        all_articles = client.get_all_articles(limit=args.limit)
     except ScraperStructureChanged as e:
         logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
         sys.exit(1)

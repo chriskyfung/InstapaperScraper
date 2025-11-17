@@ -50,7 +50,7 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch):
     mock_auth.return_value.login.assert_called_once()
 
     # Client was called
-    mock_client.return_value.get_all_articles.assert_called_once()
+    mock_client.return_value.get_all_articles.assert_called_once_with(limit=None)
 
     # Save was called with the correct data and default arguments
     mock_save.assert_called_once_with(
@@ -163,6 +163,18 @@ def test_cli_custom_credentials(mock_auth, mock_client, mock_save, monkeypatch):
     called_kwargs = mock_auth.call_args.kwargs
     assert called_kwargs.get("username") == username
     assert called_kwargs.get("password") == password
+
+
+def test_cli_with_limit(mock_auth, mock_client, mock_save, monkeypatch):
+    """Test that the --limit argument is passed to the client."""
+    mock_auth.return_value.login.return_value = True
+    mock_client.return_value.get_all_articles.return_value = []
+
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--limit", "5"])
+
+    cli.main()
+
+    mock_client.return_value.get_all_articles.assert_called_once_with(limit=5)
 
 
 def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
