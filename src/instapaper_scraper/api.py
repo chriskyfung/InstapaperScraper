@@ -155,14 +155,20 @@ class InstapaperClient:
             raise last_exception
         raise Exception(self.MSG_SCRAPING_FAILED_UNKNOWN)
 
-    def get_all_articles(self) -> List[Dict[str, str]]:
+    def get_all_articles(self, limit: Optional[int] = None) -> List[Dict[str, str]]:
         """
-        Iterates through all pages and fetches all articles.
+        Iterates through pages and fetches articles up to a specified limit.
+        Args:
+            limit: The maximum number of pages to scrape. If None, scrapes all pages.
         """
         all_articles = []
         page = self.DEFAULT_PAGE_START
         has_more = True
         while has_more:
+            if limit is not None and page > limit:
+                logging.info(f"Reached page limit of {limit}.")
+                break
+
             logging.info(self.MSG_SCRAPING_PAGE.format(page=page))
             data, has_more = self.get_articles(page=page)
             if data:

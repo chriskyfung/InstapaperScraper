@@ -116,6 +116,25 @@ def test_get_all_articles_multiple_pages(client, session):
         assert_article_data(all_articles[3], "4", "Article 4", "http://example.com/4")
 
 
+def test_get_all_articles_with_limit(client, session):
+    """Test that get_all_articles respects the page limit."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://www.instapaper.com/u/1",
+            text=get_mock_html(page_num=1, has_more=True),
+        )
+        m.get(
+            "https://www.instapaper.com/u/2",
+            text=get_mock_html(page_num=2, has_more=False),
+        )
+
+        all_articles = client.get_all_articles(limit=1)
+
+        assert len(all_articles) == 2
+        assert_article_data(all_articles[0], "1", "Article 1", "http://example.com/1")
+        assert_article_data(all_articles[1], "2", "Article 2", "http://example.com/2")
+
+
 def test_scraper_structure_changed_exception(client, session):
     """Test that ScraperStructureChanged is raised if the HTML is unexpected."""
     with requests_mock.Mocker() as m:
