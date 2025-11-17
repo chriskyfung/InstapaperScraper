@@ -1,5 +1,8 @@
 # Instapaper Scraper
 
+[![CI](https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml/badge.svg)](https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml)
+[![Codecov](https://codecov.io/gh/chriskyfung/InstapaperScraper/branch/main/graph/badge.svg)](https://codecov.io/gh/chriskyfung/InstapaperScraper)
+
 A Python script to scrape all your saved Instapaper bookmarks and export them to various formats.
 
 ## Features
@@ -11,7 +14,7 @@ A Python script to scrape all your saved Instapaper bookmarks and export them to
 ## Getting Started
 
 ### 1. Requirements
-- Python 3.6+
+- Python 3.9+
 - The following Python libraries:
   - `requests`
   - `beautifulsoup4`
