@@ -2,6 +2,8 @@ import pytest
 import logging
 from unittest.mock import MagicMock, patch
 from instapaper_scraper import cli
+import logging # Added for caplog in load_config tests
+from pathlib import Path # Added for Path.home() mocking
 
 
 @pytest.fixture

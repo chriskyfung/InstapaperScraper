@@ -83,12 +83,21 @@ class InstapaperClient:
             session: A requests.Session object, presumably authenticated.
         """
         self.session = session
-        self.max_retries = int(
-            os.getenv(self.ENV_MAX_RETRIES, str(self.DEFAULT_MAX_RETRIES))
-        )
-        self.backoff_factor = float(
-            os.getenv(self.ENV_BACKOFF_FACTOR, str(self.DEFAULT_BACKOFF_FACTOR))
-        )
+        try:
+            self.max_retries = int(
+                os.getenv(self.ENV_MAX_RETRIES, str(self.DEFAULT_MAX_RETRIES))
+            )
+        except ValueError:
+            logging.warning(f"Invalid value for {self.ENV_MAX_RETRIES}, using default {self.DEFAULT_MAX_RETRIES}")
+            self.max_retries = self.DEFAULT_MAX_RETRIES
+        
+        try:
+            self.backoff_factor = float(
+                os.getenv(self.ENV_BACKOFF_FACTOR, str(self.DEFAULT_BACKOFF_FACTOR))
+            )
+        except ValueError:
+            logging.warning(f"Invalid value for {self.ENV_BACKOFF_FACTOR}, using default {self.DEFAULT_BACKOFF_FACTOR}")
+            self.backoff_factor = self.DEFAULT_BACKOFF_FACTOR
 
     def get_articles(
         self, page: int = DEFAULT_PAGE_START, folder_info: Optional[Dict[str, str]] = None
@@ -148,6 +157,12 @@ class InstapaperClient:
             except ScraperStructureChanged as e:
                 logging.error(self.MSG_SCRAPING_FAILED_STRUCTURE_CHANGE.format(e=e))
                 raise e
+            except Exception as e:
+                last_exception = e
+                self._wait_for_retry(
+                    attempt,
+                    self.MSG_SCRAPING_FAILED_UNKNOWN,
+                )
 
         logging.error(self.MSG_ALL_RETRIES_FAILED.format(max_retries=self.max_retries))
         if last_exception:
