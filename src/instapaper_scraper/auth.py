@@ -26,6 +26,10 @@ class InstapaperConstants:
     ENV_USERNAME = "INSTAPAPER_USERNAME"
     ENV_PASSWORD = "INSTAPAPER_PASSWORD"
 
+    # File paths
+    DEFAULT_KEY_FILE = ".session_key"
+    DEFAULT_SESSION_FILE = ".instapaper_session"
+
     # Prompts
     PROMPT_USERNAME = "Enter your Instapaper username: "
     PROMPT_PASSWORD = "Enter your Instapaper password: "
@@ -44,7 +48,7 @@ class InstapaperConstants:
 
 
 # --- Encryption Helper ---
-def get_encryption_key(key_file: str = ".session_key") -> bytes:
+def get_encryption_key(key_file: str = InstapaperConstants.DEFAULT_KEY_FILE) -> bytes:
     """
     Loads the encryption key from a file or generates a new one.
     Sets strict file permissions for the key file.
@@ -66,8 +70,8 @@ class InstapaperAuthenticator:
     def __init__(
         self,
         session: requests.Session,
-        session_file: str = ".instapaper_session",
-        key_file: str = ".session_key",
+        session_file: str = InstapaperConstants.DEFAULT_SESSION_FILE,
+        key_file: str = InstapaperConstants.DEFAULT_KEY_FILE,
     ):
         self.session = session
         self.session_file = session_file

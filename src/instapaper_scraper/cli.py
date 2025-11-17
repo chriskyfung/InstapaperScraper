@@ -37,6 +37,10 @@ def main():
         "--output",
         help="Output filename. If not provided, defaults to output/bookmarks.{format}",
     )
+    parser.add_argument(
+        "--session-file", help="Path to the encrypted session file."
+    )
+    parser.add_argument("--key-file", help="Path to the session key file.")
     args = parser.parse_args()
 
     # Determine output filename
@@ -48,7 +52,13 @@ def main():
     session = requests.Session()
 
     # 1. Authenticate
-    authenticator = InstapaperAuthenticator(session)
+    auth_args = {}
+    if args.session_file:
+        auth_args["session_file"] = args.session_file
+    if args.key_file:
+        auth_args["key_file"] = args.key_file
+
+    authenticator = InstapaperAuthenticator(session, **auth_args)
     if not authenticator.login():
         sys.exit(1)  # Exit if login fails
 
