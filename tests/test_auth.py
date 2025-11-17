@@ -79,6 +79,37 @@ def test_login_with_credentials_success(authenticator, session, monkeypatch):
         assert post_data["keep_logged_in"] == ["yes"]
 
 
+def test_login_with_passed_credentials_success(session, session_file, key_file):
+    """Test successful login with credentials passed to the constructor."""
+    authenticator = InstapaperAuthenticator(
+        session,
+        session_file=str(session_file),
+        key_file=str(key_file),
+        username="arguser",
+        password="argpassword",
+    )
+
+    with requests_mock.Mocker() as m:
+        m.post(
+            "https://www.instapaper.com/user/login",
+            text="login success",
+            status_code=302,
+            headers={"Location": "/u"},
+        )
+        m.get("https://www.instapaper.com/u", text="logged in page")
+        # Add cookies that would be set on a successful login
+        session.cookies.set("pfu", "test_pfu")
+        session.cookies.set("pfp", "test_pfp")
+        session.cookies.set("pfh", "test_pfh")
+
+        assert authenticator._login_with_credentials() is True
+        history = m.request_history
+        assert len(history) == 2
+        post_data = parse_qs(history[0].text)
+        assert post_data["username"] == ["arguser"]
+        assert post_data["password"] == ["argpassword"]
+
+
 def test_login_with_credentials_failure(authenticator, session, monkeypatch):
     """Test failed login with incorrect credentials."""
     monkeypatch.setenv("INSTAPAPER_USERNAME", "testuser")
