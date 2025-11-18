@@ -29,10 +29,6 @@ class InstapaperConstants:
     APP_NAME = "instapaper-scraper"
     CONFIG_DIR = Path.home() / ".config" / APP_NAME
 
-    # File paths
-    DEFAULT_KEY_FILE = CONFIG_DIR / ".session_key"
-    DEFAULT_SESSION_FILE = CONFIG_DIR / ".instapaper_session"
-
     # Prompts
     PROMPT_USERNAME = "Enter your Instapaper username: "
     PROMPT_PASSWORD = "Enter your Instapaper password: "
@@ -50,9 +46,7 @@ class InstapaperConstants:
 
 
 # --- Encryption Helper ---
-def get_encryption_key(
-    key_file: Union[str, Path] = InstapaperConstants.DEFAULT_KEY_FILE,
-) -> bytes:
+def get_encryption_key(key_file: Union[str, Path]) -> bytes:
     """
     Loads the encryption key from a file or generates a new one.
     Sets strict file permissions for the key file.
@@ -77,16 +71,14 @@ class InstapaperAuthenticator:
     def __init__(
         self,
         session: requests.Session,
-        session_file: Union[str, Path] = None,
-        key_file: Union[str, Path] = None,
+        session_file: Union[str, Path],
+        key_file: Union[str, Path],
         username: str = None,
         password: str = None,
     ):
         self.session = session
-        self.session_file = Path(
-            session_file or InstapaperConstants.DEFAULT_SESSION_FILE
-        )
-        self.key = get_encryption_key(key_file or InstapaperConstants.DEFAULT_KEY_FILE)
+        self.session_file = Path(session_file)
+        self.key = get_encryption_key(key_file)
         self.fernet = Fernet(self.key)
         self.username = username
         self.password = password

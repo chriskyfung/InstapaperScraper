@@ -1,6 +1,7 @@
 import pytest
 import logging
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 from instapaper_scraper import cli
 
 
@@ -121,9 +122,10 @@ def test_cli_custom_auth_files(mock_auth, mock_client, mock_save, monkeypatch):
         with patch("builtins.input", return_value="0"):
             cli.main()
 
-    called_kwargs = mock_auth.call_args.kwargs
-    assert called_kwargs.get("session_file") == session_file
-    assert called_kwargs.get("key_file") == key_file
+    # The authenticator should be called with Path objects
+    called_kwargs = mock_auth.call_args[1]
+    assert called_kwargs.get("session_file") == Path(session_file)
+    assert called_kwargs.get("key_file") == Path(key_file)
 
 
 def test_cli_custom_credentials(mock_auth, mock_client, mock_save, monkeypatch):
