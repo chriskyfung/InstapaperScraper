@@ -22,10 +22,6 @@ class InstapaperConstants:
     # Request related
     REQUEST_TIMEOUT = 10
 
-    # Environment variables
-    ENV_USERNAME = "INSTAPAPER_USERNAME"
-    ENV_PASSWORD = "INSTAPAPER_PASSWORD"
-
     # File paths
     DEFAULT_KEY_FILE = ".session_key"
     DEFAULT_SESSION_FILE = ".instapaper_session"
@@ -36,7 +32,6 @@ class InstapaperConstants:
 
     # Log messages
     LOG_NO_VALID_SESSION = "No valid session found. Please log in."
-    LOG_USING_ENV_USERNAME = "Using username '{username}' from environment variables."
     LOG_LOGIN_SUCCESS = "Login successful."
     LOG_LOGIN_FAILED = "Login failed. Please check your credentials."
     LOG_SESSION_LOAD_SUCCESS = "Successfully logged in using the loaded session data."
@@ -151,10 +146,10 @@ class InstapaperAuthenticator:
             return False
 
     def _login_with_credentials(self) -> bool:
-        """Logs in using username/password from .env or user prompt."""
+        """Logs in using username/password from arguments or user prompt."""
         logging.info(InstapaperConstants.LOG_NO_VALID_SESSION)
-        username = self.username or os.getenv(InstapaperConstants.ENV_USERNAME)
-        password = self.password or os.getenv(InstapaperConstants.ENV_PASSWORD)
+        username = self.username
+        password = self.password
 
         if not username or not password:
             username = input(InstapaperConstants.PROMPT_USERNAME)
@@ -162,10 +157,6 @@ class InstapaperAuthenticator:
         elif self.username:
             logging.info(
                 f"Using username '{self.username}' from command-line arguments."
-            )
-        else:
-            logging.info(
-                InstapaperConstants.LOG_USING_ENV_USERNAME.format(username=username)
             )
 
         login_response = self.session.post(

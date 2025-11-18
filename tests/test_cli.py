@@ -2,8 +2,6 @@ import pytest
 import logging
 from unittest.mock import MagicMock, patch
 from instapaper_scraper import cli
-import logging # Added for caplog in load_config tests
-from pathlib import Path # Added for Path.home() mocking
 
 
 @pytest.fixture
@@ -30,17 +28,7 @@ def mock_save(monkeypatch):
     return mock
 
 
-@pytest.fixture
-def mock_dotenv(monkeypatch):
-    """Fixture to mock load_dotenv."""
-    mock = MagicMock()
-    monkeypatch.setattr("instapaper_scraper.cli.load_dotenv", mock)
-    return mock
-
-
-def test_cli_successful_run(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
-):
+def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch):
     """Test a successful run of the CLI with default arguments."""
     mock_auth.return_value.login.return_value = True
     mock_articles = [{"id": "1", "title": "Test", "url": "http://test.com"}]
@@ -56,14 +44,10 @@ def test_cli_successful_run(
     mock_client.return_value.get_all_articles.assert_called_once_with(
         limit=None, folder_info=None
     )
-    mock_save.assert_called_once_with(
-        mock_articles, "csv", "output/bookmarks.csv"
-    )
+    mock_save.assert_called_once_with(mock_articles, "csv", "output/bookmarks.csv")
 
 
-def test_cli_login_failure(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch, capsys
-):
+def test_cli_login_failure(mock_auth, mock_client, mock_save, monkeypatch, capsys):
     """Test that the CLI exits if login fails."""
     mock_auth.return_value.login.return_value = False
     monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
@@ -83,7 +67,6 @@ def test_cli_custom_format(
     mock_auth,
     mock_client,
     mock_save,
-    mock_dotenv,
     monkeypatch,
     format,
     expected_ext,
@@ -101,9 +84,7 @@ def test_cli_custom_format(
     mock_save.assert_called_once_with([], format, expected_filename)
 
 
-def test_cli_custom_output_file(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
-):
+def test_cli_custom_output_file(mock_auth, mock_client, mock_save, monkeypatch):
     """Test the CLI with a custom output file argument."""
     mock_auth.return_value.login.return_value = True
     mock_client.return_value.get_all_articles.return_value = []
@@ -119,9 +100,7 @@ def test_cli_custom_output_file(
     mock_save.assert_called_once_with([], "json", custom_file)
 
 
-def test_cli_custom_auth_files(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
-):
+def test_cli_custom_auth_files(mock_auth, mock_client, mock_save, monkeypatch):
     """Test that custom session and key files are passed to the authenticator."""
     mock_auth.return_value.login.return_value = True
     mock_client.return_value.get_all_articles.return_value = []
@@ -147,9 +126,7 @@ def test_cli_custom_auth_files(
     assert called_kwargs.get("key_file") == key_file
 
 
-def test_cli_custom_credentials(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
-):
+def test_cli_custom_credentials(mock_auth, mock_client, mock_save, monkeypatch):
     """Test that custom username and password are passed to the authenticator."""
     mock_auth.return_value.login.return_value = True
     mock_client.return_value.get_all_articles.return_value = []
@@ -169,9 +146,7 @@ def test_cli_custom_credentials(
     assert called_kwargs.get("password") == password
 
 
-def test_cli_with_limit(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
-):
+def test_cli_with_limit(mock_auth, mock_client, mock_save, monkeypatch):
     """Test that the --limit argument is passed to the client."""
     mock_auth.return_value.login.return_value = True
     mock_client.return_value.get_all_articles.return_value = []
@@ -186,9 +161,7 @@ def test_cli_with_limit(
     )
 
 
-def test_cli_scraper_exception(
-    mock_auth, mock_client, mock_dotenv, monkeypatch, caplog
-):
+def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
     """Test that the CLI handles exceptions from the scraper client."""
     from instapaper_scraper.exceptions import ScraperStructureChanged
 
@@ -222,7 +195,7 @@ def test_cli_version_flag(monkeypatch, capsys, version_flag):
 
 
 def test_cli_with_config_interactive_selection(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
+    mock_auth, mock_client, mock_save, monkeypatch
 ):
     """Test interactive folder selection with a config file."""
     mock_auth.return_value.login.return_value = True
@@ -241,7 +214,7 @@ def test_cli_with_config_interactive_selection(
 
 
 def test_cli_with_config_folder_argument(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
+    mock_auth, mock_client, mock_save, monkeypatch
 ):
     """Test selecting a folder via the --folder argument."""
     mock_auth.return_value.login.return_value = True
@@ -259,7 +232,7 @@ def test_cli_with_config_folder_argument(
 
 
 def test_cli_with_config_folder_output_preset(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
+    mock_auth, mock_client, mock_save, monkeypatch
 ):
     """Test using the output filename preset from the config."""
     mock_auth.return_value.login.return_value = True
@@ -283,7 +256,7 @@ def test_cli_with_config_folder_output_preset(
 
 
 def test_cli_folder_none_with_config_output(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
+    mock_auth, mock_client, mock_save, monkeypatch
 ):
     """Test --folder=none with a top-level output_filename in config."""
     mock_auth.return_value.login.return_value = True
@@ -301,7 +274,7 @@ def test_cli_folder_none_with_config_output(
 
 
 def test_cli_no_folder_with_config_output(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch
+    mock_auth, mock_client, mock_save, monkeypatch
 ):
     """Test non-folder mode with a top-level output_filename in config."""
     mock_auth.return_value.login.return_value = True
@@ -319,7 +292,7 @@ def test_cli_no_folder_with_config_output(
 
 
 def test_cli_folder_argument_no_config_exits(
-    mock_auth, mock_client, mock_save, mock_dotenv, monkeypatch, caplog
+    mock_auth, mock_client, mock_save, monkeypatch, caplog
 ):
     """Test that CLI exits if --folder is used without a config file."""
     # Simulate no config loaded
@@ -332,7 +305,10 @@ def test_cli_folder_argument_no_config_exits(
             cli.main()
 
     assert e.value.code == 1
-    assert "Configuration file not found or failed to load. The --folder option requires a configuration file." in caplog.text
+    assert (
+        "Configuration file not found or failed to load. The --folder option requires a configuration file."
+        in caplog.text
+    )
     mock_auth.assert_not_called()
     mock_client.assert_not_called()
     mock_save.assert_not_called()

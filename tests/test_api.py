@@ -269,7 +269,10 @@ def test_init_with_invalid_env_vars_defaults(monkeypatch, session):
         (None, "/u/"),
         ({"id": "123", "slug": "test-folder"}, "/u/folder/123/test-folder/"),
         ({"id": "456"}, "/u/"),  # Missing slug, should fall back to user path
-        ({"slug": "another-folder"}, "/u/"),  # Missing id, should fall back to user path
+        (
+            {"slug": "another-folder"},
+            "/u/",
+        ),  # Missing id, should fall back to user path
         ({}, "/u/"),  # Empty dict, should fall back to user path
     ],
 )
@@ -279,7 +282,7 @@ def test_get_page_url(client, folder_info, expected_url_path):
     expected_url = f"{InstapaperClient.BASE_URL}{expected_url_path}{page}"
     if folder_info and folder_info.get("id") and folder_info.get("slug"):
         expected_url = f"{InstapaperClient.BASE_URL}{InstapaperClient.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
-    
+
     assert client._get_page_url(page, folder_info) == expected_url
 
 
@@ -399,10 +402,12 @@ def test_handle_http_error_404_no_retry(client, session, caplog):
                 client.get_articles(page=1)
 
             assert "Error 404: Not Found" in caplog.text
-            assert m.call_count == 1 # Only one call, no retry
+            assert m.call_count == 1  # Only one call, no retry
 
 
-def test_handle_http_error_429_no_retry_after_header(client, session, monkeypatch, caplog):
+def test_handle_http_error_429_no_retry_after_header(
+    client, session, monkeypatch, caplog
+):
     """Test handling of 429 error without Retry-After header, falls back to exponential backoff."""
     mock_sleep = MagicMock()
     monkeypatch.setattr("time.sleep", mock_sleep)
@@ -411,7 +416,7 @@ def test_handle_http_error_429_no_retry_after_header(client, session, monkeypatc
         m.get(
             "https://www.instapaper.com/u/1",
             [
-                {"status_code": 429}, # No Retry-After header
+                {"status_code": 429},  # No Retry-After header
                 {"text": get_mock_html(1)},
             ],
         )
@@ -424,5 +429,8 @@ def test_handle_http_error_429_no_retry_after_header(client, session, monkeypatc
 
             assert m.call_count == 2
             assert mock_sleep.call_count == 1
-            assert "Rate limited (429) (attempt 1/2). Retrying in 0.01 seconds." in caplog.text
+            assert (
+                "Rate limited (429) (attempt 1/2). Retrying in 0.01 seconds."
+                in caplog.text
+            )
             assert len(articles) == 2
