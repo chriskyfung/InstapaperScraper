@@ -1,0 +1,21 @@
+# Example configuration for instapaper-scraper
+
+# Default output filename for non-folder mode
+output_filename = "home-articles.csv"
+
+# Instapaper credentials
+# You can still use .env file or environment variables for credentials
+# INSTAPAPER_USERNAME="your-username"
+# INSTAPAPER_PASSWORD="your-password"
+
+[[folders]]
+key = "ml"
+id = "1234567"
+slug = "machine-learning"
+output_filename = "ml-articles.json"
+
+[[folders]]
+key = "python"
+id = "7654321"
+slug = "python-programming"
+output_filename = "python-articles.db"

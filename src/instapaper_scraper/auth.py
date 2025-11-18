@@ -26,6 +26,10 @@ class InstapaperConstants:
     ENV_USERNAME = "INSTAPAPER_USERNAME"
     ENV_PASSWORD = "INSTAPAPER_PASSWORD"
 
+    # File paths
+    DEFAULT_KEY_FILE = ".session_key"
+    DEFAULT_SESSION_FILE = ".instapaper_session"
+
     # Prompts
     PROMPT_USERNAME = "Enter your Instapaper username: "
     PROMPT_PASSWORD = "Enter your Instapaper password: "
@@ -44,7 +48,7 @@ class InstapaperConstants:
 
 
 # --- Encryption Helper ---
-def get_encryption_key(key_file: str = ".session_key") -> bytes:
+def get_encryption_key(key_file: str = InstapaperConstants.DEFAULT_KEY_FILE) -> bytes:
     """
     Loads the encryption key from a file or generates a new one.
     Sets strict file permissions for the key file.
@@ -66,13 +70,17 @@ class InstapaperAuthenticator:
     def __init__(
         self,
         session: requests.Session,
-        session_file: str = ".instapaper_session",
-        key_file: str = ".session_key",
+        session_file: str = InstapaperConstants.DEFAULT_SESSION_FILE,
+        key_file: str = InstapaperConstants.DEFAULT_KEY_FILE,
+        username: str = None,
+        password: str = None,
     ):
         self.session = session
         self.session_file = session_file
         self.key = get_encryption_key(key_file)
         self.fernet = Fernet(self.key)
+        self.username = username
+        self.password = password
 
     def login(self) -> bool:
         """
@@ -145,16 +153,20 @@ class InstapaperAuthenticator:
     def _login_with_credentials(self) -> bool:
         """Logs in using username/password from .env or user prompt."""
         logging.info(InstapaperConstants.LOG_NO_VALID_SESSION)
-        username = os.getenv(InstapaperConstants.ENV_USERNAME)
-        password = os.getenv(InstapaperConstants.ENV_PASSWORD)
+        username = self.username or os.getenv(InstapaperConstants.ENV_USERNAME)
+        password = self.password or os.getenv(InstapaperConstants.ENV_PASSWORD)
 
-        if username and password:
+        if not username or not password:
+            username = input(InstapaperConstants.PROMPT_USERNAME)
+            password = getpass.getpass(InstapaperConstants.PROMPT_PASSWORD)
+        elif self.username:
+            logging.info(
+                f"Using username '{self.username}' from command-line arguments."
+            )
+        else:
             logging.info(
                 InstapaperConstants.LOG_USING_ENV_USERNAME.format(username=username)
             )
-        else:
-            username = input(InstapaperConstants.PROMPT_USERNAME)
-            password = getpass.getpass(InstapaperConstants.PROMPT_PASSWORD)
 
         login_response = self.session.post(
             InstapaperConstants.INSTAPAPER_LOGIN_URL,
