@@ -19,8 +19,6 @@ class InstapaperClient:
     # Environment variable names
     ENV_MAX_RETRIES = "MAX_RETRIES"
     ENV_BACKOFF_FACTOR = "BACKOFF_FACTOR"
-    ENV_ENABLE_FOLDER_MODE = "ENABLE_FOLDER_MODE"
-    ENV_FOLDER_ID_AND_SLUG = "FOLDER_ID_AND_SLUG"
 
     # Default values
     DEFAULT_MAX_RETRIES = 3
@@ -85,26 +83,36 @@ class InstapaperClient:
             session: A requests.Session object, presumably authenticated.
         """
         self.session = session
-        self.max_retries = int(
-            os.getenv(self.ENV_MAX_RETRIES, str(self.DEFAULT_MAX_RETRIES))
-        )
-        self.backoff_factor = float(
-            os.getenv(self.ENV_BACKOFF_FACTOR, str(self.DEFAULT_BACKOFF_FACTOR))
-        )
+        try:
+            self.max_retries = int(
+                os.getenv(self.ENV_MAX_RETRIES, str(self.DEFAULT_MAX_RETRIES))
+            )
+        except ValueError:
+            logging.warning(f"Invalid value for {self.ENV_MAX_RETRIES}, using default {self.DEFAULT_MAX_RETRIES}")
+            self.max_retries = self.DEFAULT_MAX_RETRIES
+        
+        try:
+            self.backoff_factor = float(
+                os.getenv(self.ENV_BACKOFF_FACTOR, str(self.DEFAULT_BACKOFF_FACTOR))
+            )
+        except ValueError:
+            logging.warning(f"Invalid value for {self.ENV_BACKOFF_FACTOR}, using default {self.DEFAULT_BACKOFF_FACTOR}")
+            self.backoff_factor = self.DEFAULT_BACKOFF_FACTOR
 
     def get_articles(
-        self, page: int = DEFAULT_PAGE_START
+        self, page: int = DEFAULT_PAGE_START, folder_info: Optional[Dict[str, str]] = None
     ) -> Tuple[List[Dict[str, str]], bool]:
         """
         Fetches a single page of articles and determines if there are more pages.
         Args:
             page: The page number to fetch.
+            folder_info: A dictionary containing 'id' and 'slug' of the folder to fetch articles from.
         Returns:
             A tuple containing:
             - A list of article data (dictionaries with id, title, url).
             - A boolean indicating if there is a next page.
         """
-        url = self._get_page_url(page)
+        url = self._get_page_url(page, folder_info)
         last_exception: Optional[Exception] = None
 
         for attempt in range(self.max_retries):
@@ -149,40 +157,46 @@ class InstapaperClient:
             except ScraperStructureChanged as e:
                 logging.error(self.MSG_SCRAPING_FAILED_STRUCTURE_CHANGE.format(e=e))
                 raise e
+            except Exception as e:
+                last_exception = e
+                self._wait_for_retry(
+                    attempt,
+                    self.MSG_SCRAPING_FAILED_UNKNOWN,
+                )
 
         logging.error(self.MSG_ALL_RETRIES_FAILED.format(max_retries=self.max_retries))
         if last_exception:
             raise last_exception
         raise Exception(self.MSG_SCRAPING_FAILED_UNKNOWN)
 
-    def get_all_articles(self) -> List[Dict[str, str]]:
+    def get_all_articles(
+        self, limit: Optional[int] = None, folder_info: Optional[Dict[str, str]] = None
+    ) -> List[Dict[str, str]]:
         """
-        Iterates through all pages and fetches all articles.
+        Iterates through pages and fetches articles up to a specified limit.
+        Args:
+            limit: The maximum number of pages to scrape. If None, scrapes all pages.
+            folder_info: A dictionary containing 'id' and 'slug' of the folder to fetch articles from.
         """
         all_articles = []
         page = self.DEFAULT_PAGE_START
         has_more = True
         while has_more:
+            if limit is not None and page > limit:
+                logging.info(f"Reached page limit of {limit}.")
+                break
+
             logging.info(self.MSG_SCRAPING_PAGE.format(page=page))
-            data, has_more = self.get_articles(page=page)
+            data, has_more = self.get_articles(page=page, folder_info=folder_info)
             if data:
                 all_articles.extend(data)
             page += 1
         return all_articles
 
-    def _get_page_url(self, page: int) -> str:
+    def _get_page_url(self, page: int, folder_info: Optional[Dict[str, str]] = None) -> str:
         """Constructs the URL for the given page, considering folder mode."""
-        enable_folder_mode = os.getenv(
-            self.ENV_ENABLE_FOLDER_MODE, "false"
-        ).lower() in (
-            "true",
-            "1",
-            "t",
-        )
-        folder_id_and_slug = os.getenv(self.ENV_FOLDER_ID_AND_SLUG)
-
-        if enable_folder_mode and folder_id_and_slug:
-            return f"{self.BASE_URL}{self.URL_PATH_FOLDER}{folder_id_and_slug}/{page}"
+        if folder_info and folder_info.get("id") and folder_info.get("slug"):
+            return f"{self.BASE_URL}{self.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
         return f"{self.BASE_URL}{self.URL_PATH_USER}{page}"
 
     def _parse_article_data(
@@ -256,6 +270,11 @@ class InstapaperClient:
                 self.MSG_REQUEST_FAILED_STATUS_REASON.format(status_code=status_code),
             )
             return True
+        elif status_code == 404:
+            logging.error(
+                f"Error 404: Not Found. This might indicate an invalid folder ID or slug. URL: {e.response.url}"
+            )
+            return False # Do not retry, unrecoverable
         else:  # Other client-side errors (4xx) are not worth retrying
             logging.error(
                 self.MSG_REQUEST_FAILED_UNRECOVERABLE.format(status_code=status_code)
