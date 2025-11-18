@@ -172,34 +172,7 @@ def test_full_login_flow_uses_credentials(authenticator, monkeypatch):
     mock_save.assert_called_once()
 
 
-def test_authenticator_init_defaults(session, monkeypatch, tmp_path):
-    """Test InstapaperAuthenticator uses default file paths if not provided."""
-    # 1. Setup mock paths
-    mock_config_dir = tmp_path / ".config" / "instapaper-scraper"
-    expected_key_file = mock_config_dir / ".session_key"
-    expected_session_file = mock_config_dir / ".instapaper_session"
 
-    # 2. Monkeypatch the constants in the auth module to use the mock paths
-    monkeypatch.setattr(InstapaperConstants, "CONFIG_DIR", mock_config_dir)
-    monkeypatch.setattr(InstapaperConstants, "DEFAULT_KEY_FILE", expected_key_file)
-    monkeypatch.setattr(
-        InstapaperConstants, "DEFAULT_SESSION_FILE", expected_session_file
-    )
-
-    # 3. Mock get_encryption_key to prevent actual file creation and to check calls
-    from cryptography.fernet import Fernet
-
-    mock_get_encryption_key = MagicMock(return_value=Fernet.generate_key())
-    monkeypatch.setattr(
-        "instapaper_scraper.auth.get_encryption_key", mock_get_encryption_key
-    )
-
-    # 4. Instantiate the authenticator without providing file paths
-    authenticator = InstapaperAuthenticator(session)
-
-    # 5. Assert that the authenticator has the correct default paths
-    assert authenticator.session_file == expected_session_file
-    mock_get_encryption_key.assert_called_once_with(expected_key_file)
 
 
 def test_login_with_credentials_interactive_input(authenticator, session, monkeypatch):

@@ -13,16 +13,31 @@ from .output import save_articles
 from .exceptions import ScraperStructureChanged
 
 
+def _resolve_path(
+    arg_path: str, working_dir_filename: str, user_dir_filename: Path
+) -> Path:
+    """Resolves a path based on CLI arg, working dir, and user config dir."""
+    if arg_path:
+        return Path(arg_path).expanduser()
+
+    working_dir_path = Path(working_dir_filename)
+    if working_dir_path.exists():
+        logging.info(f"Found {working_dir_filename} in working directory.")
+        return working_dir_path
+
+    return user_dir_filename
+
+
 def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
     """
     Loads configuration from a TOML file.
-    It checks the provided path, then ~/.config/instapaper-scraper/config.toml,
-    and finally config.toml in the project root.
+    It checks the provided path, then config.toml in the project root,
+    and finally ~/.config/instapaper-scraper/config.toml.
     """
     app_name = "instapaper-scraper"
     default_paths = [
-        Path.home() / ".config" / app_name / "config.toml",
         Path("config.toml"),
+        Path.home() / ".config" / app_name / "config.toml",
     ]
 
     paths_to_check = []
@@ -138,18 +153,23 @@ def main():
 
     session = requests.Session()
 
-    # 1. Authenticate
-    auth_args = {}
-    if args.session_file:
-        auth_args["session_file"] = args.session_file
-    if args.key_file:
-        auth_args["key_file"] = args.key_file
-    if args.username:
-        auth_args["username"] = args.username
-    if args.password:
-        auth_args["password"] = args.password
+    # Resolve session and key file paths
+    app_name = "instapaper-scraper"
+    user_config_dir = Path.home() / ".config" / app_name
 
-    authenticator = InstapaperAuthenticator(session, **auth_args)
+    session_file = _resolve_path(
+        args.session_file, ".instapaper_session", user_config_dir / ".instapaper_session"
+    )
+    key_file = _resolve_path(args.key_file, ".session_key", user_config_dir / ".session_key")
+
+    # 1. Authenticate
+    authenticator = InstapaperAuthenticator(
+        session,
+        session_file=session_file,
+        key_file=key_file,
+        username=args.username,
+        password=args.password,
+    )
     if not authenticator.login():
         sys.exit(1)  # Exit if login fails
 
