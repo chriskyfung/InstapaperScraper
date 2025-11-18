@@ -64,18 +64,23 @@ The script authenticates using one of the following methods, in order of priorit
     instapaper-scraper --username your_username --password your_password
     ```
 
-2.  **Session File**: After the first successful login, the script creates an encrypted `.instapaper_session` file to reuse your session securely.
+2.  **Session Files (`.session_key`, `.instapaper_session`)**: The script attempts to load these files in the following order:
+    a.  Path specified by `--session-file` or `--key-file` arguments.
+    b.  Files in the current working directory (e.g., `./.session_key`).
+    c.  Files in the user's configuration directory (`~/.config/instapaper-scraper/`).
+    After the first successful login, the script creates an encrypted `.instapaper_session` file and a `.session_key` file to reuse your session securely.
+
 3.  **Interactive Prompt**: If no other method is available, the script will prompt you for your username and password.
 
-> **Note on Security:** Your session file and the encryption key (`.session_key`) are created with secure permissions (read/write for the owner only) to protect your credentials.
+> **Note on Security:** Your session file (`.instapaper_session`) and the encryption key (`.session_key`) are stored with secure permissions (read/write for the owner only) to protect your credentials.
 
 ### Folder Configuration
 
 You can define and quickly access your Instapaper folders using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
 
 1.  The path specified by the `--config-path` argument.
-2.  `~/.config/instapaper-scraper/config.toml`
-3.  `config.toml` in the current working directory.
+2.  `config.toml` in the current working directory.
+3.  `~/.config/instapaper-scraper/config.toml`
 
 Here is an example of `config.toml`:
 
