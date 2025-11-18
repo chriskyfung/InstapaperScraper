@@ -2,6 +2,9 @@ import os
 import getpass
 import logging
 import stat
+from pathlib import Path
+from typing import Union
+
 from cryptography.fernet import Fernet
 import requests
 
@@ -22,9 +25,13 @@ class InstapaperConstants:
     # Request related
     REQUEST_TIMEOUT = 10
 
+    # App config
+    APP_NAME = "instapaper-scraper"
+    CONFIG_DIR = Path.home() / ".config" / APP_NAME
+
     # File paths
-    DEFAULT_KEY_FILE = ".session_key"
-    DEFAULT_SESSION_FILE = ".instapaper_session"
+    DEFAULT_KEY_FILE = CONFIG_DIR / ".session_key"
+    DEFAULT_SESSION_FILE = CONFIG_DIR / ".instapaper_session"
 
     # Prompts
     PROMPT_USERNAME = "Enter your Instapaper username: "
@@ -43,21 +50,26 @@ class InstapaperConstants:
 
 
 # --- Encryption Helper ---
-def get_encryption_key(key_file: str = InstapaperConstants.DEFAULT_KEY_FILE) -> bytes:
+def get_encryption_key(
+    key_file: Union[str, Path] = InstapaperConstants.DEFAULT_KEY_FILE,
+) -> bytes:
     """
     Loads the encryption key from a file or generates a new one.
     Sets strict file permissions for the key file.
     """
-    if os.path.exists(key_file):
-        with open(key_file, "rb") as f:
+    key_path = Path(key_file)
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if key_path.exists():
+        with open(key_path, "rb") as f:
             key = f.read()
     else:
         key = Fernet.generate_key()
-        with open(key_file, "wb") as f:
+        with open(key_path, "wb") as f:
             f.write(key)
         # Set file permissions to 0600 (owner read/write only)
-        os.chmod(key_file, stat.S_IRUSR | stat.S_IWUSR)
-        logging.info(f"Generated new encryption key at {key_file}.")
+        os.chmod(key_path, stat.S_IRUSR | stat.S_IWUSR)
+        logging.info(f"Generated new encryption key at {key_path}.")
     return key
 
 
@@ -65,14 +77,16 @@ class InstapaperAuthenticator:
     def __init__(
         self,
         session: requests.Session,
-        session_file: str = InstapaperConstants.DEFAULT_SESSION_FILE,
-        key_file: str = InstapaperConstants.DEFAULT_KEY_FILE,
+        session_file: Union[str, Path] = None,
+        key_file: Union[str, Path] = None,
         username: str = None,
         password: str = None,
     ):
         self.session = session
-        self.session_file = session_file
-        self.key = get_encryption_key(key_file)
+        self.session_file = Path(
+            session_file or InstapaperConstants.DEFAULT_SESSION_FILE
+        )
+        self.key = get_encryption_key(key_file or InstapaperConstants.DEFAULT_KEY_FILE)
         self.fernet = Fernet(self.key)
         self.username = username
         self.password = password
@@ -95,7 +109,7 @@ class InstapaperAuthenticator:
 
     def _load_session(self) -> bool:
         """Tries to load and verify a session from the session file."""
-        if not os.path.exists(self.session_file):
+        if not self.session_file.exists():
             return False
 
         logging.info(f"Loading encrypted session from {self.session_file}...")
@@ -129,7 +143,7 @@ class InstapaperAuthenticator:
                     session_file=self.session_file, e=e
                 )
             )
-            os.remove(self.session_file)
+            self.session_file.unlink(missing_ok=True)
             return False
 
     def _verify_session(self) -> bool:
@@ -195,6 +209,7 @@ class InstapaperAuthenticator:
 
         encrypted_data = self.fernet.encrypt(cookie_data.encode("utf-8"))
 
+        self.session_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.session_file, "wb") as f:
             f.write(encrypted_data)
 
