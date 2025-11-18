@@ -88,19 +88,25 @@ class InstapaperClient:
                 os.getenv(self.ENV_MAX_RETRIES, str(self.DEFAULT_MAX_RETRIES))
             )
         except ValueError:
-            logging.warning(f"Invalid value for {self.ENV_MAX_RETRIES}, using default {self.DEFAULT_MAX_RETRIES}")
+            logging.warning(
+                f"Invalid value for {self.ENV_MAX_RETRIES}, using default {self.DEFAULT_MAX_RETRIES}"
+            )
             self.max_retries = self.DEFAULT_MAX_RETRIES
-        
+
         try:
             self.backoff_factor = float(
                 os.getenv(self.ENV_BACKOFF_FACTOR, str(self.DEFAULT_BACKOFF_FACTOR))
             )
         except ValueError:
-            logging.warning(f"Invalid value for {self.ENV_BACKOFF_FACTOR}, using default {self.DEFAULT_BACKOFF_FACTOR}")
+            logging.warning(
+                f"Invalid value for {self.ENV_BACKOFF_FACTOR}, using default {self.DEFAULT_BACKOFF_FACTOR}"
+            )
             self.backoff_factor = self.DEFAULT_BACKOFF_FACTOR
 
     def get_articles(
-        self, page: int = DEFAULT_PAGE_START, folder_info: Optional[Dict[str, str]] = None
+        self,
+        page: int = DEFAULT_PAGE_START,
+        folder_info: Optional[Dict[str, str]] = None,
     ) -> Tuple[List[Dict[str, str]], bool]:
         """
         Fetches a single page of articles and determines if there are more pages.
@@ -193,7 +199,9 @@ class InstapaperClient:
             page += 1
         return all_articles
 
-    def _get_page_url(self, page: int, folder_info: Optional[Dict[str, str]] = None) -> str:
+    def _get_page_url(
+        self, page: int, folder_info: Optional[Dict[str, str]] = None
+    ) -> str:
         """Constructs the URL for the given page, considering folder mode."""
         if folder_info and folder_info.get("id") and folder_info.get("slug"):
             return f"{self.BASE_URL}{self.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
@@ -274,7 +282,7 @@ class InstapaperClient:
             logging.error(
                 f"Error 404: Not Found. This might indicate an invalid folder ID or slug. URL: {e.response.url}"
             )
-            return False # Do not retry, unrecoverable
+            return False  # Do not retry, unrecoverable
         else:  # Other client-side errors (4xx) are not worth retrying
             logging.error(
                 self.MSG_REQUEST_FAILED_UNRECOVERABLE.format(status_code=status_code)

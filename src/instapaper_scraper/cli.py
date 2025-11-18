@@ -4,7 +4,6 @@ import argparse
 import requests
 import tomli
 from pathlib import Path
-from dotenv import load_dotenv
 from typing import Union
 
 from . import __version__
@@ -48,7 +47,6 @@ def main():
     """
     Main entry point for the Instapaper scraper CLI.
     """
-    load_dotenv()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     parser = argparse.ArgumentParser(description="Scrape Instapaper articles.")
@@ -74,9 +72,7 @@ def main():
         "--output",
         help="Output filename. If not provided, defaults to output/bookmarks.{format}",
     )
-    parser.add_argument(
-        "--session-file", help="Path to the encrypted session file."
-    )
+    parser.add_argument("--session-file", help="Path to the encrypted session file.")
     parser.add_argument("--key-file", help="Path to the session key file.")
     parser.add_argument("--username", help="Instapaper username.")
     parser.add_argument("--password", help="Instapaper password.")
@@ -101,7 +97,9 @@ def main():
             selected_folder = None
         else:
             if not config:
-                logging.error("Configuration file not found or failed to load. The --folder option requires a configuration file.")
+                logging.error(
+                    "Configuration file not found or failed to load. The --folder option requires a configuration file."
+                )
                 sys.exit(1)
             else:
                 for f in folders:
@@ -159,7 +157,9 @@ def main():
     client = InstapaperClient(session)
     try:
         folder_info = selected_folder if selected_folder else None
-        all_articles = client.get_all_articles(limit=args.limit, folder_info=folder_info)
+        all_articles = client.get_all_articles(
+            limit=args.limit, folder_info=folder_info
+        )
     except ScraperStructureChanged as e:
         logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
         sys.exit(1)

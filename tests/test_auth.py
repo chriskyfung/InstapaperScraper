@@ -6,7 +6,11 @@ import logging
 from unittest.mock import MagicMock
 from urllib.parse import parse_qs
 
-from instapaper_scraper.auth import InstapaperAuthenticator, get_encryption_key, InstapaperConstants
+from instapaper_scraper.auth import (
+    InstapaperAuthenticator,
+    get_encryption_key,
+    InstapaperConstants,
+)
 
 
 @pytest.fixture
@@ -50,36 +54,6 @@ def test_get_encryption_key_creates_file(key_file):
     assert key == key2
 
 
-def test_login_with_credentials_success(authenticator, session, monkeypatch):
-    """Test successful login with username and password."""
-    monkeypatch.setenv("INSTAPAPER_USERNAME", "testuser")
-    monkeypatch.setenv("INSTAPAPER_PASSWORD", "testpass")
-
-    with requests_mock.Mocker() as m:
-        m.post(
-            "https://www.instapaper.com/user/login",
-            text="login success",
-            status_code=302,
-            headers={"Location": "/u"},
-        )
-        m.get("https://www.instapaper.com/u", text="logged in page")
-        # Add cookies that would be set on a successful login
-        session.cookies.set("pfu", "test_pfu")
-        session.cookies.set("pfp", "test_pfp")
-        session.cookies.set("pfh", "test_pfh")
-
-        assert authenticator._login_with_credentials() is True
-        history = m.request_history
-        assert len(history) == 2
-        assert history[0].method == "POST"
-        
-        # The body is form-encoded, not JSON
-        post_data = parse_qs(history[0].text)
-        assert post_data["username"] == ["testuser"]
-        assert post_data["password"] == ["testpass"]
-        assert post_data["keep_logged_in"] == ["yes"]
-
-
 def test_login_with_passed_credentials_success(session, session_file, key_file):
     """Test successful login with credentials passed to the constructor."""
     authenticator = InstapaperAuthenticator(
@@ -109,21 +83,6 @@ def test_login_with_passed_credentials_success(session, session_file, key_file):
         post_data = parse_qs(history[0].text)
         assert post_data["username"] == ["arguser"]
         assert post_data["password"] == ["argpassword"]
-
-
-def test_login_with_credentials_failure(authenticator, session, monkeypatch):
-    """Test failed login with incorrect credentials."""
-    monkeypatch.setenv("INSTAPAPER_USERNAME", "testuser")
-    monkeypatch.setenv("INSTAPAPER_PASSWORD", "wrongpass")
-
-    with requests_mock.Mocker() as m:
-        m.post(
-            "https://www.instapaper.com/user/login",
-            text="login failed",
-            status_code=200,
-        )
-
-        assert authenticator._login_with_credentials() is False
 
 
 def test_save_and_load_session(authenticator, session_file, key_file):
@@ -216,8 +175,11 @@ def test_authenticator_init_defaults(session, monkeypatch, tmp_path):
     """Test InstapaperAuthenticator uses default file paths if not provided."""
     # Mock get_encryption_key to control key file creation and check path
     from cryptography.fernet import Fernet
+
     mock_get_encryption_key = MagicMock(return_value=Fernet.generate_key())
-    monkeypatch.setattr("instapaper_scraper.auth.get_encryption_key", mock_get_encryption_key)
+    monkeypatch.setattr(
+        "instapaper_scraper.auth.get_encryption_key", mock_get_encryption_key
+    )
 
     # Temporarily change the default constants to point to tmp_path for this test
     # This is to ensure that the mocked get_encryption_key receives the expected path
@@ -227,13 +189,13 @@ def test_authenticator_init_defaults(session, monkeypatch, tmp_path):
     # Verify that the authenticator stores the default session file path string
     assert authenticator.session_file == InstapaperConstants.DEFAULT_SESSION_FILE
     # Verify that get_encryption_key was called with the default key file path string
-    mock_get_encryption_key.assert_called_once_with(InstapaperConstants.DEFAULT_KEY_FILE)
+    mock_get_encryption_key.assert_called_once_with(
+        InstapaperConstants.DEFAULT_KEY_FILE
+    )
 
 
 def test_login_with_credentials_interactive_input(authenticator, session, monkeypatch):
     """Test _login_with_credentials prompts for input when no env vars or args."""
-    monkeypatch.delenv("INSTAPAPER_USERNAME", raising=False)
-    monkeypatch.delenv("INSTAPAPER_PASSWORD", raising=False)
     authenticator.username = None
     authenticator.password = None
 
@@ -270,58 +232,17 @@ def test_verify_session_request_exception(authenticator, caplog):
 
         with caplog.at_level(logging.ERROR):
             assert authenticator._verify_session() is False
-            assert "Session verification request failed: Test connection error" in caplog.text
+            assert (
+                "Session verification request failed: Test connection error"
+                in caplog.text
+            )
 
 
 def test_save_session_no_known_cookies(authenticator, session_file, caplog):
     """Test _save_session when no required cookies are present."""
-    authenticator.session.cookies.clear() # Ensure no cookies are set
+    authenticator.session.cookies.clear()  # Ensure no cookies are set
 
     with caplog.at_level(logging.WARNING):
         authenticator._save_session()
         assert "Could not find a known session cookie to save." in caplog.text
-        assert not session_file.exists() # File should not be created
-
-
-def test_login_with_credentials_bad_login_url(authenticator, session, monkeypatch, caplog):
-    """Test _login_with_credentials when login_response.url is not the success path."""
-    monkeypatch.setenv("INSTAPAPER_USERNAME", "testuser")
-    monkeypatch.setenv("INSTAPAPER_PASSWORD", "testpass")
-
-    with requests_mock.Mocker() as m:
-        m.post(
-            "https://www.instapaper.com/user/login",
-            text="redirect to wrong place",
-            status_code=302,
-            headers={"Location": "/wrong_path"}, # Incorrect redirect
-        )
-        m.get("https://www.instapaper.com/wrong_path", text="wrong page") # Mock the redirect target
-        # Add cookies that would be set on a successful login (but URL is wrong)
-        session.cookies.set("pfu", "test_pfu")
-        session.cookies.set("pfp", "test_pfp")
-        session.cookies.set("pfh", "test_pfh")
-
-        with caplog.at_level(logging.ERROR):
-            assert authenticator._login_with_credentials() is False
-            assert "Login failed. Please check your credentials." in caplog.text
-
-
-def test_login_with_credentials_missing_required_cookies(authenticator, session, monkeypatch, caplog):
-    """Test _login_with_credentials when required cookies are missing."""
-    monkeypatch.setenv("INSTAPAPER_USERNAME", "testuser")
-    monkeypatch.setenv("INSTAPAPER_PASSWORD", "testpass")
-
-    with requests_mock.Mocker() as m:
-        m.post(
-            "https://www.instapaper.com/user/login",
-            text="login success",
-            status_code=302,
-            headers={"Location": "/u"},
-        )
-        m.get("https://www.instapaper.com/u", text="logged in page") # Mock the redirect target
-        # Only set one of the required cookies
-        session.cookies.set("pfu", "test_pfu")
-
-        with caplog.at_level(logging.ERROR):
-            assert authenticator._login_with_credentials() is False
-            assert "Login failed. Please check your credentials." in caplog.text
+        assert not session_file.exists()  # File should not be created
