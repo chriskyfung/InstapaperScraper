@@ -72,6 +72,52 @@ The script authenticates using one of the following methods, in order of priorit
 
 > **Note on Security:** Your session file and the encryption key (`.session_key`) are created with secure permissions (read/write for the owner only) to protect your credentials.
 
+### Folder Configuration
+You can define and quickly access your Instapaper folders using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
+1.  The path specified by the `--config-path` argument.
+2.  `~/.config/instapaper-scraper/config.toml`
+3.  `config.toml` in the current working directory.
+
+Here is an example of `config.toml`:
+```toml
+# Default output filename for non-folder mode
+output_filename = "home-articles.csv"
+
+[[folders]]
+key = "ml"
+id = "1234567"
+slug = "machine-learning"
+output_filename = "ml-articles.json"
+
+[[folders]]
+key = "python"
+id = "7654321"
+slug = "python-programming"
+output_filename = "python-articles.db"
+```
+
+- **output_filename (top-level)**: The default output filename to use when not in folder mode.
+- **key**: A short alias for the folder.
+- **id**: The folder ID from the Instapaper URL.
+- **slug**: The human-readable part of the folder URL.
+- **output_filename (folder-specific)**: A preset output filename for scraped articles from this specific folder.
+
+When a `config.toml` file is present and no `--folder` argument is provided, the scraper will prompt you to select a folder. You can also specify a folder directly using the `--folder` argument with its key, ID, or slug. Use `--folder=none` to explicitly disable folder mode and scrape all articles.
+
+### Command-line Arguments
+
+| Argument              | Description                                                              |
+| --------------------- | ------------------------------------------------------------------------ |
+| `--config-path <path>`| Path to the configuration file. Searches `~/.config/instapaper-scraper/config.toml` and `config.toml` in the current directory by default. |
+| `--folder <value>`    | Specify a folder by key, ID, or slug from your `config.toml`. **Requires a configuration file to be loaded.** Use `none` to explicitly disable folder mode. If a configuration file is not found or fails to load, and this option is used (not set to `none`), the program will exit. |
+| `--format <format>`   | Output format (`csv`, `json`, `sqlite`). Default: `csv`.                 |
+| `--output <filename>` | Specify a custom output filename.                                        |
+| `--username <user>`   | Your Instapaper account username.                                        |
+| `--password <pass>`   | Your Instapaper account password.                                        |
+
+| `MAX_RETRIES`         | The maximum number of retries for a failed request (default: 3).         |
+| `BACKOFF_FACTOR`      | The backoff factor for retries (default: 1).                             |
+
 ### Output Formats
 
 You can control the output format using the `--format` argument. The supported formats are:
@@ -87,20 +133,6 @@ If the `--format` flag is omitted, the script will default to `csv`.
 
 The output data includes a unique `id` for each article. To open an article directly in Instapaper's reader view, append this ID to the base URL:
 `https://www.instapaper.com/read/<article_id>`
-
-### Environment Variables
-
-You can configure the script's behavior using the following environment variables:
-
-| Variable              | Description                                                              |
-| --------------------- | ------------------------------------------------------------------------ |
-| `INSTAPAPER_USERNAME` | Your Instapaper account username.                                        |
-| `INSTAPAPER_PASSWORD` | Your Instapaper account password.                                        |
-| `ENABLE_FOLDER_MODE`  | Set to `true` to scrape a specific folder instead of the main archive.   |
-| `FOLDER_ID_AND_SLUG`  | The ID and slug of the folder to scrape (e.g., `12345/my-folder-name`).  |
-| `MAX_RETRIES`         | The maximum number of retries for a failed request (default: 3).         |
-| `BACKOFF_FACTOR`      | The backoff factor for retries (default: 1).                             |
-
 
 ## How It Works
 
@@ -198,9 +230,6 @@ To automatically fix linting errors:
 ```sh
 ruff check . --fix
 ```
-
-### Continuous Integration
-A GitHub Actions workflow is configured to run all checks (linting, formatting, and testing) automatically on every push and pull request.
 
 ## Disclaimer
 
