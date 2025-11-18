@@ -20,7 +20,6 @@ A Python tool to scrape all your saved Instapaper bookmarks and export them to v
 - The following Python libraries:
   - `requests`
   - `beautifulsoup4`
-  - `python-dotenv`
   - `guara`
   - `cryptography`
 
@@ -59,26 +58,27 @@ instapaper-scraper --format sqlite --output my_articles.db
 
 The script authenticates using one of the following methods, in order of priority:
 
-1.  **Environment Variables**: The recommended method for automation. Create a `.env` file in the project root or set the variables in your shell:
+1.  **Command-line Arguments**: Provide your username and password directly when running the script:
 
-    ```
-    INSTAPAPER_USERNAME=your_username
-    INSTAPAPER_PASSWORD=your_password
+    ```sh
+    instapaper-scraper --username your_username --password your_password
     ```
 
 2.  **Session File**: After the first successful login, the script creates an encrypted `.instapaper_session` file to reuse your session securely.
-
 3.  **Interactive Prompt**: If no other method is available, the script will prompt you for your username and password.
 
 > **Note on Security:** Your session file and the encryption key (`.session_key`) are created with secure permissions (read/write for the owner only) to protect your credentials.
 
 ### Folder Configuration
+
 You can define and quickly access your Instapaper folders using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
+
 1.  The path specified by the `--config-path` argument.
 2.  `~/.config/instapaper-scraper/config.toml`
 3.  `config.toml` in the current working directory.
 
 Here is an example of `config.toml`:
+
 ```toml
 # Default output filename for non-folder mode
 output_filename = "home-articles.csv"
@@ -114,9 +114,6 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 | `--output <filename>` | Specify a custom output filename.                                        |
 | `--username <user>`   | Your Instapaper account username.                                        |
 | `--password <pass>`   | Your Instapaper account password.                                        |
-
-| `MAX_RETRIES`         | The maximum number of retries for a failed request (default: 3).         |
-| `BACKOFF_FACTOR`      | The backoff factor for retries (default: 1).                             |
 
 ### Output Formats
 
@@ -181,6 +178,7 @@ This project uses `pytest` for testing, `black` for code formatting, and `ruff` 
 ### Setup
 
 To install the development dependencies:
+
 ```sh
 pip install -e .[dev]
 ```
@@ -198,17 +196,13 @@ python -m src.instapaper_scraper.cli
 To run the tests, execute the following command from the project root:
 
 ```sh
-
 pytest
-
 ```
 
 To check test coverage:
 
 ```sh
-
 pytest --cov=src/instapaper_scraper --cov-report=term-missing
-
 ```
 
 ### Code Quality
