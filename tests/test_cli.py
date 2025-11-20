@@ -185,7 +185,7 @@ def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
 @pytest.mark.parametrize("version_flag", ["--version", "-v"])
 def test_cli_version_flag(monkeypatch, capsys, version_flag):
     """Test that the CLI prints the version and exits."""
-    monkeypatch.setattr("instapaper_scraper.__version__", "2.0.0")
+    monkeypatch.setattr("instapaper_scraper.__version__", "1.0.0")
     monkeypatch.setattr("sys.argv", ["instapaper-scraper", version_flag])
 
     with pytest.raises(SystemExit) as e:
@@ -193,7 +193,7 @@ def test_cli_version_flag(monkeypatch, capsys, version_flag):
 
     assert e.value.code == 0
     captured = capsys.readouterr()
-    assert "instapaper-scraper 2.0.0" in captured.out
+    assert "instapaper-scraper 1.0.0" in captured.out
 
 
 def test_cli_with_config_interactive_selection(

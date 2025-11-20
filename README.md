@@ -23,25 +23,14 @@ A Python tool to scrape all your saved Instapaper bookmarks and export them to v
 
 ### 1. Requirements
 - Python 3.9+
-- The following Python libraries:
-  - `requests`
-  - `beautifulsoup4`
-  - `guara`
-  - `cryptography`
 
 ### 2. Installation
 
-Clone the repository and install the package in editable mode. It is recommended to use a virtual environment.
+This package is available on PyPI and can be installed with pip:
 
 ```sh
-git clone https://github.com/chriskyfung/InstapaperScraper.git
-cd InstapaperScraper
-python -m venv venv
-source venv/bin/activate
-pip install -e .
+pip install instapaper-scraper
 ```
-
-This will install the `instapaper-scraper` command-line tool and all its dependencies.
 
 ### 3. Usage
 

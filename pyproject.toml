@@ -4,33 +4,44 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "instapaper-scraper"
-version = "2.0.0"
+version = "1.0.0"
 description = "A tool to scrape articles from Instapaper."
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
 ]
+license-files = ["LICEN[CS]E*"]
 dependencies = [
-    "beautifulsoup4==4.14.2",
-    "certifi==2025.11.12",
-    "charset-normalizer==3.4.3",
-    "cryptography==46.0.3",
-    "guara==0.0.14",
-    "idna==3.11",
-    "python-dotenv==1.2.1",
-    "requests==2.32.5",
-    "soupsieve==2.8",
-    "typing_extensions==4.15.0",
-    "urllib3==2.5.0",
-    "tomli==2.0.1",
+    "beautifulsoup4~=4.14.2",
+    "certifi~=2025.11.12",
+    "charset-normalizer~=3.4.3",
+    "cryptography~=46.0.3",
+    "guara~=0.0.14",
+    "idna~=3.11",
+    "python-dotenv~=1.2.1",
+    "requests~=2.32.5",
+    "soupsieve~=2.8",
+    "typing_extensions~=4.15.0",
+    "urllib3~=2.5.0",
+    "tomli~=2.0.1; python_version < '3.11'",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/user/instapaper-scraper"
-"Bug Tracker" = "https://github.com/user/instapaper-scraper/issues"
+Homepage = "https://github.com/chriskyfung/InstapaperScraper"
+Source = "https://github.com/chriskyfung/InstapaperScraper"
+Issues = "https://github.com/chriskyfung/InstapaperScraper/issues"
 
 [project.scripts]
 instapaper-scraper = "instapaper_scraper.cli:main"
@@ -53,4 +64,6 @@ dev = [
     "types-requests",
     "types-beautifulsoup4",
     "requests-mock",
+    "build",
+    "twine"
 ]
