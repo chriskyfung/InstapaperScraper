@@ -1,7 +1,13 @@
 # Instapaper Scraper
 
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fchriskyfung%2FInstapaperScraper%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)
 [![CI](https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml/badge.svg)](https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml)
-[![Codecov](https://codecov.io/gh/chriskyfung/InstapaperScraper/branch/main/graph/badge.svg?token=1OK83DVUA5)](https://codecov.io/gh/chriskyfung/InstapaperScraper)
+[![PyPI version](https://img.shields.io/pypi/v/instapaper-scraper.svg)](https://pypi.org/project/instapaper-scraper/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![GitHub License](https://img.shields.io/github/license/chriskyfung/InstapaperScraper)
+](https://www.gnu.org/licenses/gpl-3.0.en.html)
+[![codecov](https://codecov.io/gh/chriskyfung/InstapaperScraper/branch/main/graph/badge.svg?token=1OK83DVUA5)](https://codecov.io/gh/chriskyfung/InstapaperScraper)
 
 A Python tool to scrape all your saved Instapaper bookmarks and export them to various formats.
 
