@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1 # Stricter threshold to prevent significant drops
+        paths:
+          - "src"
+    patch:
+      default:
+        # This new section ensures new code meets a quality standard
+        target: 80% # Enforce 80% coverage on all new/changed code
+        paths:
+          - "src"
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false # Post a comment even if coverage doesn't change
