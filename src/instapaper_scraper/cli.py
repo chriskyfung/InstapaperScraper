@@ -2,9 +2,13 @@ import sys
 import logging
 import argparse
 import requests
-import tomli
 from pathlib import Path
 from typing import Union
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from . import __version__
 from .auth import InstapaperAuthenticator
@@ -50,8 +54,8 @@ def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
             try:
                 with open(path, "rb") as f:
                     logging.info(f"Loading configuration from {path}")
-                    return tomli.load(f)
-            except tomli.TOMLDecodeError as e:
+                    return tomllib.load(f)
+            except tomllib.TOMLDecodeError as e:
                 logging.error(f"Error decoding TOML file at {path}: {e}")
                 return None
     logging.info("No configuration file found at any default location.")
