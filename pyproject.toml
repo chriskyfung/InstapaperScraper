@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-"Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.14",
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: End Users/Desktop",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
@@ -35,12 +35,13 @@ dependencies = [
     "soupsieve~=2.8",
     "typing_extensions~=4.15.0",
     "urllib3~=2.5.0",
-"tomli~=2.0.1; python_version < '3.11'",
+    "tomli~=2.0.1; python_version < '3.11'",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/user/instapaper-scraper"
-"Bug Tracker" = "https://github.com/user/instapaper-scraper/issues"
+Homepage = "https://github.com/chriskyfung/InstapaperScraper"
+Source = "https://github.com/chriskyfung/InstapaperScraper"
+Issues = "https://github.com/chriskyfung/InstapaperScraper/issues"
 
 [project.scripts]
 instapaper-scraper = "instapaper_scraper.cli:main"
