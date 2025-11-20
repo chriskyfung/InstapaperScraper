@@ -5,10 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-11-20
+## [Unreleased]
+
+First official public release on PyPI.
 
 ### Added
-- First official public release on PyPI.
+- `pyproject.toml` for project configuration and dependency management.
+- A `src` layout for the main application code.
+- A `tests` directory for the test suite.
+- A GitHub Actions workflow for CI/CD to automate linting, formatting, and testing.
+- `pytest`, `pytest-cov`, and `requests-mock` for testing.
+- `black` and `ruff` for code formatting and linting.
+- Added support for JSON and SQLite output formats via the `--format` command-line argument.
+- Added support for custom output filename via the `--output` command-line argument.
+
+### Changed
+- The project is now a standard Python package, installable with `pip`.
+- The main script has been replaced by a command-line entry point (`instapaper-scraper`).
+- Decomposed the original `scrape.py` into logical modules (`api`, `auth`, `cli`, `output`, `exceptions`).
+- Migrated all tests from `unittest` to `pytest`, using fixtures and parametrization.
+- Updated `README.md` to reflect the new project structure, installation, and usage.
+- The default output format is now CSV, but users can choose between CSV, JSON, and SQLite.
+
+### Removed
+- `requirements.txt` in favor of `pyproject.toml`.
+- The old `scrape.py` script.
+- The old `unittest`-based test files.
+
+### Deprecated
+- The 'page' number has been removed from the output data. Users can now open a specific article on Instapaper by appending the article's unique ID to the base URL: `https://www.instapaper.com/read/<article_id>`.
 
 ## [0.4.0] - 2025-11-13
 
