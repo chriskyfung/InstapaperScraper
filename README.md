@@ -7,7 +7,7 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![GitHub License](https://img.shields.io/github/license/chriskyfung/InstapaperScraper)
 ](https://www.gnu.org/licenses/gpl-3.0.en.html)
-[![codecov](https://codecov.io/gh/chriskyfung/InstapaperScraper/branch/main/graph/badge.svg?token=1OK83DVUA5)](https://codecov.io/gh/chriskyfung/InstapaperScraper)
+[![codecov](https://codecov.io/gh/chriskyfung/InstapaperScraper/graph/badge.svg?token=1OK83DVUA5)](https://codecov.io/gh/chriskyfung/InstapaperScraper)
 
 A Python tool to scrape all your saved Instapaper bookmarks and export them to various formats.
 
