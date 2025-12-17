@@ -3,6 +3,7 @@
 ![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fchriskyfung%2FInstapaperScraper%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)
 [![CI](https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml/badge.svg)](https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/instapaper-scraper.svg)](https://pypi.org/project/instapaper-scraper/)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/instapaper-scraper?period=total&left_text=downloads)](https://pepy.tech/projects/instapaper-scraper)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![GitHub License](https://img.shields.io/github/license/chriskyfung/InstapaperScraper)
