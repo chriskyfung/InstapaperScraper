@@ -2,21 +2,42 @@ import pytest
 import json
 import sqlite3
 import logging
+import io
+import csv
+from unittest.mock import patch, MagicMock
+
 from instapaper_scraper.output import (
     save_to_csv,
     save_to_json,
     save_to_sqlite,
     save_articles,
+    get_sqlite_create_table_sql,
+    get_sqlite_insert_sql,
 )
+from instapaper_scraper.constants import INSTAPAPER_READ_URL
 
 
 @pytest.fixture
 def sample_articles():
     """Fixture for sample article data."""
-    return [
-        {"id": "1", "title": "Article One", "url": "http://example.com/1"},
-        {"id": "2", "title": "Article Two, with comma", "url": "http://example.com/2"},
-    ]
+
+    # Return a function to allow creating a fresh copy for each test
+    def _sample_articles():
+        return [
+            {"id": "1", "title": "Article One", "url": "http://example.com/1"},
+            {
+                "id": "2",
+                "title": "Article Two, with comma",
+                "url": "http://example.com/2",
+            },
+            {
+                "id": "3",
+                "title": 'Article Three, with "quotes"',
+                "url": "http://example.com/3",
+            },
+        ]
+
+    return _sample_articles
 
 
 @pytest.fixture
@@ -25,56 +46,208 @@ def output_dir(tmp_path):
     return tmp_path / "output"
 
 
-def test_save_to_csv(sample_articles, output_dir):
-    """Test saving articles to a CSV file."""
+def test_get_sqlite_create_table_sql_without_url():
+    """Test CREATE TABLE SQL without instapaper_url."""
+    sql = get_sqlite_create_table_sql(add_instapaper_url=False)
+    assert "instapaper_url" not in sql
+
+
+@patch("sqlite3.sqlite_version_info", (3, 31, 0))
+def test_get_sqlite_create_table_sql_with_url_modern_sqlite():
+    """Test CREATE TABLE SQL with instapaper_url on modern SQLite."""
+    sql = get_sqlite_create_table_sql(add_instapaper_url=True)
+    assert "instapaper_url TEXT GENERATED ALWAYS AS" in sql
+
+
+@patch("sqlite3.sqlite_version_info", (3, 30, 0))
+def test_get_sqlite_create_table_sql_with_url_old_sqlite():
+    """Test CREATE TABLE SQL with instapaper_url on old SQLite."""
+    sql = get_sqlite_create_table_sql(add_instapaper_url=True)
+    assert "instapaper_url TEXT" in sql
+    assert "GENERATED" not in sql
+
+
+def test_get_sqlite_insert_sql_without_manual_url():
+    """Test INSERT SQL without manual instapaper_url."""
+    sql = get_sqlite_insert_sql(add_instapaper_url_manually=False)
+    assert "instapaper_url" not in sql
+
+
+def test_get_sqlite_insert_sql_with_manual_url():
+    """Test INSERT SQL with manual instapaper_url."""
+    sql = get_sqlite_insert_sql(add_instapaper_url_manually=True)
+    assert "(id, title, url, instapaper_url)" in sql
+    assert "VALUES (:id, :title, :url, :instapaper_url)" in sql
+
+
+def test_save_to_csv_without_instapaper_url(sample_articles, output_dir):
+    """Test saving articles to a CSV file without the Instapaper URL."""
     csv_file = output_dir / "bookmarks.csv"
-    save_to_csv(sample_articles, str(csv_file))
+    articles = sample_articles()
+    save_to_csv(articles, str(csv_file), add_instapaper_url=False)
 
     assert csv_file.exists()
-    with open(csv_file, "r") as f:
-        lines = f.readlines()
-        assert lines[0].strip() == "id,title,url"
-        assert lines[1].strip() == "1,Article One,http://example.com/1"
-        assert lines[2].strip() == '2,"Article Two, with comma",http://example.com/2'
+
+    # Generate expected content
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=["id", "title", "url"],
+        quoting=csv.QUOTE_ALL,
+    )
+    writer.writeheader()
+    writer.writerows(articles)
+    expected_content = output.getvalue()
+
+    with open(csv_file, "r", newline="", encoding="utf-8") as f:
+        content = f.read()
+        assert content == expected_content
+
+
+def test_save_to_csv_with_instapaper_url(sample_articles, output_dir):
+    """Test saving articles to a CSV file with an Instapaper URL."""
+    csv_file = output_dir / "bookmarks_with_prefix.csv"
+    articles = sample_articles()
+    # In a real scenario, the caller (save_articles) adds this dict key
+    articles_with_url = [
+        {**a, "instapaper_url": f"{INSTAPAPER_READ_URL}{a['id']}"} for a in articles
+    ]
+
+    save_to_csv(articles_with_url, str(csv_file), add_instapaper_url=True)
+
+    assert csv_file.exists()
+
+    # Generate expected content
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=["id", "instapaper_url", "title", "url"],
+        quoting=csv.QUOTE_ALL,
+    )
+    writer.writeheader()
+    writer.writerows(articles_with_url)
+    expected_content = output.getvalue()
+
+    with open(csv_file, "r", newline="", encoding="utf-8") as f:
+        content = f.read()
+        assert content == expected_content
 
 
 def test_save_to_json(sample_articles, output_dir):
     """Test saving articles to a JSON file."""
     json_file = output_dir / "bookmarks.json"
-    save_to_json(sample_articles, str(json_file))
+    articles = sample_articles()
+    save_to_json(articles, str(json_file))
 
     assert json_file.exists()
     with open(json_file, "r") as f:
         data = json.load(f)
-        assert data == sample_articles
+        assert data == articles
 
 
 def test_save_to_sqlite(sample_articles, output_dir):
-    """Test saving articles to a SQLite database."""
+    """Test saving articles to a SQLite database without instapaper_url."""
     db_file = output_dir / "bookmarks.db"
-    save_to_sqlite(sample_articles, str(db_file))
+    save_to_sqlite(sample_articles(), str(db_file), add_instapaper_url=False)
 
     assert db_file.exists()
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
     cursor.execute("SELECT id, title, url FROM articles ORDER BY id ASC")
     rows = cursor.fetchall()
-    conn.close()
 
-    assert len(rows) == 2
+    assert len(rows) == 3
     assert rows[0] == ("1", "Article One", "http://example.com/1")
     assert rows[1] == ("2", "Article Two, with comma", "http://example.com/2")
+    assert rows[2] == ("3", 'Article Three, with "quotes"', "http://example.com/3")
+    # Verify the instapaper_url column does not exist
+    with pytest.raises(sqlite3.OperationalError):
+        cursor.execute("SELECT instapaper_url FROM articles")
+
+    conn.close()
 
 
+@patch("sqlite3.connect")
+@patch("sqlite3.sqlite_version_info", (3, 31, 0))
+def test_save_to_sqlite_with_instapaper_url_modern_sqlite(
+    mock_connect, sample_articles, output_dir
+):
+    """Test saving with instapaper_url on modern SQLite."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor
+
+    articles = sample_articles()
+    db_file = output_dir / "test.db"
+    save_to_sqlite(articles, str(db_file), add_instapaper_url=True)
+
+    # Check that CREATE TABLE uses GENERATED column
+    create_sql = mock_cursor.execute.call_args_list[0][0][0]
+    assert "GENERATED ALWAYS AS" in create_sql
+
+    # Check that INSERT statement does NOT include the URL column
+    insert_sql = mock_cursor.executemany.call_args_list[0][0][0]
+    assert "instapaper_url" not in insert_sql
+
+    # Check that data is NOT modified
+    executed_data = mock_cursor.executemany.call_args_list[0][0][1]
+    assert executed_data == articles
+    assert "instapaper_url" not in executed_data[0]
+
+
+@patch("sqlite3.connect")
+@patch("sqlite3.sqlite_version_info", (3, 30, 0))
+def test_save_to_sqlite_with_instapaper_url_old_sqlite(
+    mock_connect, sample_articles, output_dir
+):
+    """Test saving with instapaper_url on old SQLite."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_connect.return_value = mock_conn
+    mock_conn.cursor.return_value = mock_cursor
+
+    articles = sample_articles()
+    db_file = output_dir / "test.db"
+    save_to_sqlite(articles, str(db_file), add_instapaper_url=True)
+
+    # Check that CREATE TABLE uses simple TEXT column
+    create_sql = mock_cursor.execute.call_args_list[0][0][0]
+    assert "instapaper_url TEXT" in create_sql
+    assert "GENERATED" not in create_sql
+
+    # Check that INSERT statement DOES include the URL column
+    insert_sql = mock_cursor.executemany.call_args_list[0][0][0]
+    assert "instapaper_url" in insert_sql
+
+    # Check that data IS modified
+    executed_data = mock_cursor.executemany.call_args_list[0][0][1]
+    assert "instapaper_url" in executed_data[0]
+    assert (
+        executed_data[0]["instapaper_url"]
+        == f"{INSTAPAPER_READ_URL}{articles[0]['id']}"
+    )
+
+
+@pytest.mark.parametrize("add_instapaper_url", [True, False])
 @pytest.mark.parametrize(
     "format, filename",
     [("csv", "test.csv"), ("json", "test.json"), ("sqlite", "test.db")],
 )
-def test_save_articles_dispatcher(sample_articles, output_dir, format, filename):
+def test_save_articles_dispatcher(
+    sample_articles, output_dir, format, filename, add_instapaper_url, caplog
+):
     """Test the main save_articles dispatcher function."""
     output_file = output_dir / filename
-    save_articles(sample_articles, format, str(output_file))
+    with caplog.at_level(logging.INFO):
+        save_articles(
+            sample_articles(),
+            format,
+            str(output_file),
+            add_instapaper_url=add_instapaper_url,
+        )
     assert output_file.exists()
+    assert f"Saved 3 articles to {output_file}" in caplog.text
 
 
 def test_save_articles_no_data(output_dir, caplog):
