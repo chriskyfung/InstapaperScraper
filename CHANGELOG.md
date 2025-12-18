@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-12-18
+
+### Added
+- Added an `--add-read-url` command-line argument to include a new `read_url` column in the output, containing a full, clickable URL for each article.
+
+### Changed
+- Improved the CSV output to be RFC 4180 compliant, with all fields quoted.
+- Enhanced CSV field escaping to more robustly handle special characters like quotes and commas within the data.
+
 ## [1.0.0] - 2025-11-20
 
 First official public release on PyPI.
@@ -96,3 +105,5 @@ First official public release on PyPI.
 ### Chore
 - Added an example environment configuration file.
 - Updated the `README.md` to reflect new features like CSV export and folder mode.
+
+

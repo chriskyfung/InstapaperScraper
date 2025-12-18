@@ -23,6 +23,7 @@ A Python tool to scrape all your saved Instapaper bookmarks and export them to v
 ## Getting Started
 
 ### 1. Requirements
+
 - Python 3.9+
 
 ### 2. Installation
@@ -107,14 +108,15 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 
 ### Command-line Arguments
 
-| Argument              | Description                                                              |
-| --------------------- | ------------------------------------------------------------------------ |
+| Argument | Description |
+| --- | --- |
 | `--config-path <path>`| Path to the configuration file. Searches `~/.config/instapaper-scraper/config.toml` and `config.toml` in the current directory by default. |
-| `--folder <value>`    | Specify a folder by key, ID, or slug from your `config.toml`. **Requires a configuration file to be loaded.** Use `none` to explicitly disable folder mode. If a configuration file is not found or fails to load, and this option is used (not set to `none`), the program will exit. |
-| `--format <format>`   | Output format (`csv`, `json`, `sqlite`). Default: `csv`.                 |
-| `--output <filename>` | Specify a custom output filename.                                        |
-| `--username <user>`   | Your Instapaper account username.                                        |
-| `--password <pass>`   | Your Instapaper account password.                                        |
+| `--folder <value>` | Specify a folder by key, ID, or slug from your `config.toml`. **Requires a configuration file to be loaded.** Use `none` to explicitly disable folder mode. If a configuration file is not found or fails to load, and this option is used (not set to `none`), the program will exit. |
+| `--format <format>` | Output format (`csv`, `json`, `sqlite`). Default: `csv`. |
+| `--output <filename>` | Specify a custom output filename. |
+| `--username <user>` | Your Instapaper account username. |
+| `--password <pass>` | Your Instapaper account password. |
+| `--add-read-url` | Adds a `read_url` column to the output, containing a full, clickable URL for each article. |
 
 ### Output Formats
 
@@ -129,8 +131,15 @@ If the `--format` flag is omitted, the script will default to `csv`.
 
 #### Opening Articles in Instapaper
 
-The output data includes a unique `id` for each article. To open an article directly in Instapaper's reader view, append this ID to the base URL:
-`https://www.instapaper.com/read/<article_id>`
+The output data includes a unique `id` for each article. You can use this ID to construct a URL to the article's reader view: `https://www.instapaper.com/read/<article_id>`.
+
+For convenience, you can use the `--add-read-url` flag to have the script include a full, clickable URL in the output.
+
+```sh
+instapaper-scraper --add-read-url
+```
+
+This adds a `read_url` field to each article in the JSON output and a `read_url` column in the CSV and SQLite outputs. The original `id` field is preserved.
 
 ## How It Works
 
@@ -146,9 +155,9 @@ The tool is designed with a modular architecture for reliability and maintainabi
 ### CSV (`output/bookmarks.csv`)
 
 ```csv
-id,title,url
-999901234,"Article 1",https://www.example.com/page-1/
-999002345,"Article 2",https://www.example.com/page-2/
+"id", "title", "url", "read_url"
+"999901234", "Article 1", "https://www.example.com/page-1/", "https://www.instapaper.com/read/999901234"
+"999002345", "Article 2", "https://www.example.com/page-2/", "https://www.instapaper.com/read/999002345"
 ```
 
 ### JSON (`output/bookmarks.json`)
@@ -158,12 +167,14 @@ id,title,url
     {
         "id": "999901234",
         "title": "Article 1",
-        "url": "https://www.example.com/page-1/"
+        "url": "https://www.example.com/page-1/",
+        "read_url": "https://www.instapaper.com/read/999901234"
     },
     {
         "id": "999002345",
         "title": "Article 2",
-        "url": "https://www.example.com/page-2/"
+        "url": "https://www.example.com/page-2/",
+        "read_url": "https://www.instapaper.com/read/999002345"
     }
 ]
 ```
