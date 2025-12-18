@@ -229,9 +229,7 @@ class InstapaperClient:
                     raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
                 link = link_element["href"]
 
-                data.append(
-                    {KEY_ID: article_id, KEY_TITLE: title, KEY_URL: link}
-                )
+                data.append({KEY_ID: article_id, KEY_TITLE: title, KEY_URL: link})
             except AttributeError as e:
                 logging.warning(
                     self.MSG_PARSE_ARTICLE_WARNING.format(

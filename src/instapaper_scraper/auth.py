@@ -125,9 +125,7 @@ class InstapaperAuthenticator:
 
         except Exception as e:
             logging.warning(
-                self.LOG_SESSION_LOAD_ERROR.format(
-                    session_file=self.session_file, e=e
-                )
+                self.LOG_SESSION_LOAD_ERROR.format(session_file=self.session_file, e=e)
             )
             self.session_file.unlink(missing_ok=True)
             return False
@@ -168,9 +166,8 @@ class InstapaperAuthenticator:
         required_cookies = self.REQUIRED_COOKIES
         found_cookies = {c.name for c in self.session.cookies}
 
-        if (
-            self.LOGIN_SUCCESS_PATH in login_response.url
-            and required_cookies.issubset(found_cookies)
+        if self.LOGIN_SUCCESS_PATH in login_response.url and required_cookies.issubset(
+            found_cookies
         ):
             logging.info(self.LOG_LOGIN_SUCCESS)
             return True
@@ -200,6 +197,4 @@ class InstapaperAuthenticator:
             f.write(encrypted_data)
 
         os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
-        logging.info(
-            self.LOG_SAVED_SESSION.format(session_file=self.session_file)
-        )
+        logging.info(self.LOG_SAVED_SESSION.format(session_file=self.session_file))

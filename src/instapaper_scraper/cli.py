@@ -15,7 +15,7 @@ from .auth import InstapaperAuthenticator
 from .api import InstapaperClient
 from .output import save_articles
 from .exceptions import ScraperStructureChanged
-from .constants import APP_NAME, CONFIG_DIR
+from .constants import CONFIG_DIR
 
 # --- Constants ---
 CONFIG_FILENAME = "config.toml"
