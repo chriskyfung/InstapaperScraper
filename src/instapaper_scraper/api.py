@@ -7,14 +7,13 @@ import requests
 from bs4 import BeautifulSoup
 
 from .exceptions import ScraperStructureChanged
+from .constants import INSTAPAPER_BASE_URL, KEY_ID, KEY_TITLE, KEY_URL
 
 
 class InstapaperClient:
     """
     A client for interacting with the Instapaper website to fetch articles.
     """
-
-    BASE_URL = "https://www.instapaper.com"
 
     # Environment variable names
     ENV_MAX_RETRIES = "MAX_RETRIES"
@@ -38,11 +37,6 @@ class InstapaperClient:
     # URL paths
     URL_PATH_USER = "/u/"
     URL_PATH_FOLDER = "/u/folder/"
-
-    # Dictionary keys for article data
-    KEY_ID = "id"
-    KEY_TITLE = "title"
-    KEY_URL = "url"
 
     # HTTP status codes
     HTTP_TOO_MANY_REQUESTS = 429
@@ -134,7 +128,7 @@ class InstapaperClient:
 
                 articles = article_list.find_all(self.ARTICLE_TAG)
                 article_ids = [
-                    article[self.KEY_ID].replace(self.ARTICLE_ID_PREFIX, "")
+                    article[KEY_ID].replace(self.ARTICLE_ID_PREFIX, "")
                     for article in articles
                 ]
 
@@ -204,8 +198,8 @@ class InstapaperClient:
     ) -> str:
         """Constructs the URL for the given page, considering folder mode."""
         if folder_info and folder_info.get("id") and folder_info.get("slug"):
-            return f"{self.BASE_URL}{self.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
-        return f"{self.BASE_URL}{self.URL_PATH_USER}{page}"
+            return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
+        return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_USER}{page}"
 
     def _parse_article_data(
         self, soup: BeautifulSoup, article_ids: List[str], page: int
@@ -235,9 +229,7 @@ class InstapaperClient:
                     raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
                 link = link_element["href"]
 
-                data.append(
-                    {self.KEY_ID: article_id, self.KEY_TITLE: title, self.KEY_URL: link}
-                )
+                data.append({KEY_ID: article_id, KEY_TITLE: title, KEY_URL: link})
             except AttributeError as e:
                 logging.warning(
                     self.MSG_PARSE_ARTICLE_WARNING.format(

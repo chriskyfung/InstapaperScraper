@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from instapaper_scraper.api import InstapaperClient
 from instapaper_scraper.exceptions import ScraperStructureChanged
+from instapaper_scraper.constants import INSTAPAPER_BASE_URL
 
 
 @pytest.fixture
@@ -279,10 +280,7 @@ def test_init_with_invalid_env_vars_defaults(monkeypatch, session):
 def test_get_page_url(client, folder_info, expected_url_path):
     """Test _get_page_url constructs correct URLs for different folder_info."""
     page = 1
-    expected_url = f"{InstapaperClient.BASE_URL}{expected_url_path}{page}"
-    if folder_info and folder_info.get("id") and folder_info.get("slug"):
-        expected_url = f"{InstapaperClient.BASE_URL}{InstapaperClient.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
-
+    expected_url = f"{INSTAPAPER_BASE_URL}{expected_url_path}{page}"
     assert client._get_page_url(page, folder_info) == expected_url
 
 

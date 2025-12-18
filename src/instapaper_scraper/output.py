@@ -5,17 +5,14 @@ import logging
 import csv
 from typing import List, Dict, Any
 
-from .constants import INSTAPAPER_READ_URL
+from .constants import INSTAPAPER_READ_URL, KEY_ID, KEY_TITLE, KEY_URL
 
 # Constants for file operations
 JSON_INDENT = 4
 
 # Constants for SQLite output
 SQLITE_TABLE_NAME = "articles"
-SQLITE_ID_COL = "id"
 SQLITE_INSTAPAPER_URL_COL = "instapaper_url"
-SQLITE_TITLE_COL = "title"
-SQLITE_URL_COL = "url"
 
 # Constants for logging messages
 LOG_NO_ARTICLES = "No articles found to save."
@@ -26,15 +23,15 @@ LOG_UNKNOWN_FORMAT = "Unknown output format: {format}"
 def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
     """Returns the SQL statement to create the articles table."""
     columns = [
-        f"{SQLITE_ID_COL} TEXT PRIMARY KEY",
-        f"{SQLITE_TITLE_COL} TEXT NOT NULL",
-        f"{SQLITE_URL_COL} TEXT NOT NULL",
+        f"{KEY_ID} TEXT PRIMARY KEY",
+        f"{KEY_TITLE} TEXT NOT NULL",
+        f"{KEY_URL} TEXT NOT NULL",
     ]
     if add_instapaper_url:
         # The GENERATED ALWAYS AS syntax was added in SQLite 3.31.0
         if sqlite3.sqlite_version_info >= (3, 31, 0):
             columns.append(
-                f"{SQLITE_INSTAPAPER_URL_COL} TEXT GENERATED ALWAYS AS ('{INSTAPAPER_READ_URL}' || {SQLITE_ID_COL}) VIRTUAL"
+                f"{SQLITE_INSTAPAPER_URL_COL} TEXT GENERATED ALWAYS AS ('{INSTAPAPER_READ_URL}' || {KEY_ID}) VIRTUAL"
             )
         else:
             columns.append(f"{SQLITE_INSTAPAPER_URL_COL} TEXT")
@@ -44,8 +41,8 @@ def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
 
 def get_sqlite_insert_sql(add_instapaper_url_manually: bool = False) -> str:
     """Returns the SQL statement to insert an article."""
-    cols = [SQLITE_ID_COL, SQLITE_TITLE_COL, SQLITE_URL_COL]
-    placeholders = [f":{SQLITE_ID_COL}", f":{SQLITE_TITLE_COL}", f":{SQLITE_URL_COL}"]
+    cols = [KEY_ID, KEY_TITLE, KEY_URL]
+    placeholders = [f":{KEY_ID}", f":{KEY_TITLE}", f":{KEY_URL}"]
 
     if add_instapaper_url_manually:
         cols.append(SQLITE_INSTAPAPER_URL_COL)
@@ -60,7 +57,7 @@ def save_to_csv(
     """Saves a list of articles to a CSV file."""
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w", newline="", encoding="utf-8") as f:
-        fieldnames = [SQLITE_ID_COL, SQLITE_TITLE_COL, SQLITE_URL_COL]
+        fieldnames = [KEY_ID, KEY_TITLE, KEY_URL]
         if add_instapaper_url:
             # Insert instapaper_url after the id column
             fieldnames.insert(1, SQLITE_INSTAPAPER_URL_COL)
@@ -99,7 +96,7 @@ def save_to_sqlite(
         data_to_insert = [
             {
                 **article,
-                SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}",
+                SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[KEY_ID]}",
             }
             for article in data
         ]
@@ -134,7 +131,7 @@ def save_articles(
         data = [
             {
                 **article,
-                SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}",
+                SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[KEY_ID]}",
             }
             for article in data
         ]

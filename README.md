@@ -146,7 +146,7 @@ This adds a `instapaper_url` field to each article in the JSON output and a `ins
 The tool is designed with a modular architecture for reliability and maintainability.
 
 1. **Authentication**: The `InstapaperAuthenticator` handles secure login and session management.
-2. **Scraping**: The `InstapaperClient` iterates through all pages of your bookmarks, fetching the metadata for each article with robust error handling and retries.
+2. **Scraping**: The `InstapaperClient` iterates through all pages of your bookmarks, fetching the metadata for each article with robust error handling and retries. Shared constants, like the Instapaper base URL, are managed through `src/instapaper_scraper/constants.py`.
 3. **Data Collection**: All fetched articles are aggregated into a single list.
 4. **Export**: Finally, the collected data is written to a file in your chosen format (`.csv`, `.json`, or `.db`).
 
