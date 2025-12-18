@@ -214,6 +214,22 @@ def test_http_error_retries(client, session, status_code, caplog):
         assert len(articles) == 2
 
 
+def test_http_error_all_retries_fail(client, session, caplog):
+    """Test that an exception is raised after all retries fail for a 5xx error."""
+    with requests_mock.Mocker() as m:
+        m.get("https://www.instapaper.com/u/1", status_code=500)
+
+        client.max_retries = 2
+        client.backoff_factor = 0.01
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(requests.exceptions.HTTPError):
+                client.get_articles(page=1)
+            assert f"All {client.max_retries} retries failed." in caplog.text
+
+        assert m.call_count == client.max_retries
+
+
 def test_4xx_error_does_not_retry(client, session):
     """Test that client-side 4xx errors do not trigger a retry."""
     with requests_mock.Mocker() as m:
@@ -255,7 +271,7 @@ def test_429_error_with_retry_after(client, session, monkeypatch):
 
         assert m.call_count == 2
         mock_sleep.assert_called_once_with(5)
-        
+
 
 def test_malformed_article_is_skipped(client, session, caplog):
     """Test that a malformed article is skipped and a warning is logged."""
