@@ -31,32 +31,39 @@ def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
         f"{SQLITE_URL_COL} TEXT NOT NULL",
     ]
     if add_instapaper_url:
-        columns.append(
-            f"{SQLITE_INSTAPAPER_URL_COL} TEXT GENERATED ALWAYS AS ('{INSTAPAPER_READ_URL}' || {SQLITE_ID_COL}) VIRTUAL"
-        )
+        # The GENERATED ALWAYS AS syntax was added in SQLite 3.31.0
+        if sqlite3.sqlite_version_info >= (3, 31, 0):
+            columns.append(
+                f"{SQLITE_INSTAPAPER_URL_COL} TEXT GENERATED ALWAYS AS ('{INSTAPAPER_READ_URL}' || {SQLITE_ID_COL}) VIRTUAL"
+            )
+        else:
+            columns.append(f"{SQLITE_INSTAPAPER_URL_COL} TEXT")
+
     return f"CREATE TABLE IF NOT EXISTS {SQLITE_TABLE_NAME} ({', '.join(columns)})"
 
 
-def get_sqlite_insert_sql() -> str:
+def get_sqlite_insert_sql(add_instapaper_url_manually: bool = False) -> str:
     """Returns the SQL statement to insert an article."""
     cols = [SQLITE_ID_COL, SQLITE_TITLE_COL, SQLITE_URL_COL]
     placeholders = [f":{SQLITE_ID_COL}", f":{SQLITE_TITLE_COL}", f":{SQLITE_URL_COL}"]
+
+    if add_instapaper_url_manually:
+        cols.append(SQLITE_INSTAPAPER_URL_COL)
+        placeholders.append(f":{SQLITE_INSTAPAPER_URL_COL}")
+
     return f"INSERT OR REPLACE INTO {SQLITE_TABLE_NAME} ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"
 
 
-def save_to_csv(data: List[Dict[str, Any]], filename: str, add_instapaper_url: bool = False):
+def save_to_csv(
+    data: List[Dict[str, Any]], filename: str, add_instapaper_url: bool = False
+):
     """Saves a list of articles to a CSV file."""
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w", newline="", encoding="utf-8") as f:
+        fieldnames = [SQLITE_ID_COL, SQLITE_TITLE_COL, SQLITE_URL_COL]
         if add_instapaper_url:
-            fieldnames = [
-                SQLITE_ID_COL,
-                SQLITE_INSTAPAPER_URL_COL,
-                SQLITE_TITLE_COL,
-                SQLITE_URL_COL,
-            ]
-        else:
-            fieldnames = [SQLITE_ID_COL, SQLITE_TITLE_COL, SQLITE_URL_COL]
+            # Insert instapaper_url after the id column
+            fieldnames.insert(1, SQLITE_INSTAPAPER_URL_COL)
 
         writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
         writer.writeheader()
@@ -81,7 +88,29 @@ def save_to_sqlite(
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
     cursor.execute(get_sqlite_create_table_sql(add_instapaper_url))
-    cursor.executemany(get_sqlite_insert_sql(), data)
+
+    # For older SQLite versions, we need to manually add the URL
+    manual_insert_required = add_instapaper_url and sqlite3.sqlite_version_info < (
+        3,
+        31,
+        0,
+    )
+    if manual_insert_required:
+        data_to_insert = [
+            {
+                **article,
+                SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}",
+            }
+            for article in data
+        ]
+    else:
+        data_to_insert = data
+
+    insert_sql = get_sqlite_insert_sql(
+        add_instapaper_url_manually=manual_insert_required
+    )
+    cursor.executemany(insert_sql, data_to_insert)
+
     conn.commit()
     conn.close()
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=db_name))
@@ -100,9 +129,13 @@ def save_articles(
         logging.info(LOG_NO_ARTICLES)
         return
 
-    if add_instapaper_url:
+    # Add the instapaper_url to the data for formats that don't auto-generate it
+    if add_instapaper_url and format in ("csv", "json"):
         data = [
-            {**article, SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}"}
+            {
+                **article,
+                SQLITE_INSTAPAPER_URL_COL: f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}",
+            }
             for article in data
         ]
 

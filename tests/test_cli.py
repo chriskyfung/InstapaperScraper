@@ -84,7 +84,9 @@ def test_cli_custom_format(
             cli.main()
 
     expected_filename = f"output/bookmarks.{expected_ext}"
-    mock_save.assert_called_once_with([], format, expected_filename, add_instapaper_url=False)
+    mock_save.assert_called_once_with(
+        [], format, expected_filename, add_instapaper_url=False
+    )
 
 
 def test_cli_custom_output_file(mock_auth, mock_client, mock_save, monkeypatch):
@@ -271,7 +273,9 @@ def test_cli_with_config_folder_output_preset(
     with patch("instapaper_scraper.cli.load_config", return_value=config):
         cli.main()
 
-    mock_save.assert_called_once_with([], "csv", "ml-articles.json", add_instapaper_url=False)
+    mock_save.assert_called_once_with(
+        [], "csv", "ml-articles.json", add_instapaper_url=False
+    )
 
 
 def test_cli_folder_none_with_config_output(

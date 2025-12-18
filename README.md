@@ -181,7 +181,7 @@ The tool is designed with a modular architecture for reliability and maintainabi
 
 ### SQLite (`output/bookmarks.db`)
 
-A SQLite database file is created with an `articles` table. The table includes `id`, `title`, and `url` columns. If the `--add-instapaper-url` flag is used, a `instapaper_url` column is also included.
+A SQLite database file is created with an `articles` table. The table includes `id`, `title`, and `url` columns. If the `--add-instapaper-url` flag is used, a `instapaper_url` column is also included. This feature is fully backward-compatible and will automatically adapt to the user's installed SQLite version, using an efficient generated column on modern versions (3.31.0+) and a fallback for older versions.
 
 ## Development & Testing
 
