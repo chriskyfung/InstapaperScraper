@@ -102,10 +102,10 @@ def save_articles(
         return
 
     if add_read_url:
-        for article in data:
-            article[SQLITE_READ_URL_COL] = (
-                f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}"
-            )
+        data = [
+            {**article, SQLITE_READ_URL_COL: f"{INSTAPAPER_READ_URL}{article[SQLITE_ID_COL]}"}
+            for article in data
+        ]
 
     if format == "csv":
         save_to_csv(data, filename=filename, add_read_url=add_read_url)
