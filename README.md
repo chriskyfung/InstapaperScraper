@@ -152,7 +152,7 @@ The tool is designed with a modular architecture for reliability and maintainabi
 
 ## Example Output
 
-### CSV (`output/bookmarks.csv`)
+### CSV (`output/bookmarks.csv`) (with --add-instapaper-url)
 
 ```csv
 "id","instapaper_url","title","url"
@@ -160,7 +160,7 @@ The tool is designed with a modular architecture for reliability and maintainabi
 "999002345","https://www.instapaper.com/read/999002345","Article 2","https://www.example.com/page-2/"
 ```
 
-### JSON (`output/bookmarks.json`)
+### JSON (`output/bookmarks.json`) (with --add-instapaper-url)
 
 ```json
 [

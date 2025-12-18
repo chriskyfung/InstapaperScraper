@@ -11,8 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added an `--add-instapaper-url` command-line argument to include a new `instapaper_url` column in the output, containing a full, clickable URL for each article.
 
 ### Changed
-- Improved the CSV output to be RFC 4180 compliant, with all fields quoted.
-- Enhanced CSV field escaping to more robustly handle special characters like quotes and commas within the data.
+- Improved the CSV output to be RFC 4180 compliant, with all fields quoted and robust handling of special characters.
 - Optimized SQLite output to use a generated column for `instapaper_url`, reducing database size and improving data integrity.
 - Improved SQLite compatibility by adding a fallback for versions older than 3.31.0 when using the `--add-instapaper-url` option.
 
