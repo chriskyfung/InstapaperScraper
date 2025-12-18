@@ -116,7 +116,7 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 | `--output <filename>` | Specify a custom output filename. |
 | `--username <user>` | Your Instapaper account username. |
 | `--password <pass>` | Your Instapaper account password. |
-| `--add-read-url` | Adds a `read_url` column to the output, containing a full, clickable URL for each article. |
+| `--add-instapaper-url` | Adds a `instapaper_url` column to the output, containing a full, clickable URL for each article. |
 
 ### Output Formats
 
@@ -133,13 +133,13 @@ If the `--format` flag is omitted, the script will default to `csv`.
 
 The output data includes a unique `id` for each article. You can use this ID to construct a URL to the article's reader view: `https://www.instapaper.com/read/<article_id>`.
 
-For convenience, you can use the `--add-read-url` flag to have the script include a full, clickable URL in the output.
+For convenience, you can use the `--add-instapaper-url` flag to have the script include a full, clickable URL in the output.
 
 ```sh
-instapaper-scraper --add-read-url
+instapaper-scraper --add-instapaper-url
 ```
 
-This adds a `read_url` field to each article in the JSON output and a `read_url` column in the CSV and SQLite outputs. The original `id` field is preserved.
+This adds a `instapaper_url` field to each article in the JSON output and a `instapaper_url` column in the CSV and SQLite outputs. The original `id` field is preserved.
 
 ## How It Works
 
@@ -155,7 +155,7 @@ The tool is designed with a modular architecture for reliability and maintainabi
 ### CSV (`output/bookmarks.csv`)
 
 ```csv
-"id","read_url","title","url"
+"id","instapaper_url","title","url"
 "999901234","https://www.instapaper.com/read/999901234","Article 1","https://www.example.com/page-1/"
 "999002345","https://www.instapaper.com/read/999002345","Article 2","https://www.example.com/page-2/"
 ```
@@ -168,20 +168,20 @@ The tool is designed with a modular architecture for reliability and maintainabi
         "id": "999901234",
         "title": "Article 1",
         "url": "https://www.example.com/page-1/",
-        "read_url": "https://www.instapaper.com/read/999901234"
+        "instapaper_url": "https://www.instapaper.com/read/999901234"
     },
     {
         "id": "999002345",
         "title": "Article 2",
         "url": "https://www.example.com/page-2/",
-        "read_url": "https://www.instapaper.com/read/999002345"
+        "instapaper_url": "https://www.instapaper.com/read/999002345"
     }
 ]
 ```
 
 ### SQLite (`output/bookmarks.db`)
 
-A SQLite database file is created with an `articles` table. The table includes `id`, `title`, and `url` columns. If the `--add-read-url` flag is used, a `read_url` column is also included.
+A SQLite database file is created with an `articles` table. The table includes `id`, `title`, and `url` columns. If the `--add-instapaper-url` flag is used, a `instapaper_url` column is also included.
 
 ## Development & Testing
 

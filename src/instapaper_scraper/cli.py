@@ -96,9 +96,9 @@ def main():
     parser.add_argument("--username", help="Instapaper username.")
     parser.add_argument("--password", help="Instapaper password.")
     parser.add_argument(
-        "--add-read-url",
+        "--add-instapaper-url",
         action="store_true",
-        help="Add a 'read_url' column to the output with the full Instapaper read URL.",
+        help="Add an 'instapaper_url' column to the output with the full Instapaper read URL.",
     )
     parser.add_argument(
         "--limit",
@@ -208,7 +208,7 @@ def main():
         all_articles,
         args.format,
         output_filename,
-        add_read_url=args.add_read_url,
+        add_instapaper_url=args.add_instapaper_url,
     )
 
 

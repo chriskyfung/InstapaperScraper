@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2025-12-18
 
 ### Added
-- Added an `--add-read-url` command-line argument to include a new `read_url` column in the output, containing a full, clickable URL for each article.
+- Added an `--add-instapaper-url` command-line argument to include a new `instapaper_url` column in the output, containing a full, clickable URL for each article.
 
 ### Changed
+- Renamed the `--add-read-url` argument and `read_url` column to `--add-instapaper-url` and `instapaper_url` respectively for better clarity.
 - Improved the CSV output to be RFC 4180 compliant, with all fields quoted.
 - Enhanced CSV field escaping to more robustly handle special characters like quotes and commas within the data.
-- Optimized SQLite output to use a generated column for `read_url`, reducing database size and improving data integrity.
+- Optimized SQLite output to use a generated column for `instapaper_url`, reducing database size and improving data integrity.
 
 ## [1.0.0] - 2025-11-20
 

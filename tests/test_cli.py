@@ -46,7 +46,7 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch):
         limit=None, folder_info=None
     )
     mock_save.assert_called_once_with(
-        mock_articles, "csv", "output/bookmarks.csv", add_read_url=False
+        mock_articles, "csv", "output/bookmarks.csv", add_instapaper_url=False
     )
 
 
@@ -84,7 +84,7 @@ def test_cli_custom_format(
             cli.main()
 
     expected_filename = f"output/bookmarks.{expected_ext}"
-    mock_save.assert_called_once_with([], format, expected_filename, add_read_url=False)
+    mock_save.assert_called_once_with([], format, expected_filename, add_instapaper_url=False)
 
 
 def test_cli_custom_output_file(mock_auth, mock_client, mock_save, monkeypatch):
@@ -100,7 +100,7 @@ def test_cli_custom_output_file(mock_auth, mock_client, mock_save, monkeypatch):
         with patch("builtins.input", return_value="0"):
             cli.main()
 
-    mock_save.assert_called_once_with([], "json", custom_file, add_read_url=False)
+    mock_save.assert_called_once_with([], "json", custom_file, add_instapaper_url=False)
 
 
 def test_cli_custom_auth_files(mock_auth, mock_client, mock_save, monkeypatch):
@@ -150,18 +150,18 @@ def test_cli_custom_credentials(mock_auth, mock_client, mock_save, monkeypatch):
     assert called_kwargs.get("password") == password
 
 
-def test_cli_with_add_read_url(mock_auth, mock_client, mock_save, monkeypatch):
-    """Test that the --add-read-url argument triggers the read URL prefix."""
+def test_cli_with_add_instapaper_url(mock_auth, mock_client, mock_save, monkeypatch):
+    """Test that the --add-instapaper-url argument triggers the read URL prefix."""
     mock_auth.return_value.login.return_value = True
     mock_client.return_value.get_all_articles.return_value = []
-    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--add-read-url"])
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--add-instapaper-url"])
 
     with patch("instapaper_scraper.cli.load_config", return_value={}):
         with patch("builtins.input", return_value="0"):
             cli.main()
 
     mock_save.assert_called_once_with(
-        [], "csv", "output/bookmarks.csv", add_read_url=True
+        [], "csv", "output/bookmarks.csv", add_instapaper_url=True
     )
 
 
@@ -271,7 +271,7 @@ def test_cli_with_config_folder_output_preset(
     with patch("instapaper_scraper.cli.load_config", return_value=config):
         cli.main()
 
-    mock_save.assert_called_once_with([], "csv", "ml-articles.json", add_read_url=False)
+    mock_save.assert_called_once_with([], "csv", "ml-articles.json", add_instapaper_url=False)
 
 
 def test_cli_folder_none_with_config_output(
@@ -289,7 +289,7 @@ def test_cli_folder_none_with_config_output(
     mock_client.return_value.get_all_articles.assert_called_once_with(
         limit=None, folder_info=None
     )
-    mock_save.assert_called_once_with([], "csv", "home.csv", add_read_url=False)
+    mock_save.assert_called_once_with([], "csv", "home.csv", add_instapaper_url=False)
 
 
 def test_cli_no_folder_with_config_output(
@@ -307,7 +307,7 @@ def test_cli_no_folder_with_config_output(
     mock_client.return_value.get_all_articles.assert_called_once_with(
         limit=None, folder_info=None
     )
-    mock_save.assert_called_once_with([], "csv", "home.csv", add_read_url=False)
+    mock_save.assert_called_once_with([], "csv", "home.csv", add_instapaper_url=False)
 
 
 def test_cli_folder_argument_no_config_exits(
