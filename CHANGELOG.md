@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improved the CSV output to be RFC 4180 compliant, with all fields quoted.
 - Enhanced CSV field escaping to more robustly handle special characters like quotes and commas within the data.
+- Optimized SQLite output to use a generated column for `read_url`, reducing database size and improving data integrity.
 
 ## [1.0.0] - 2025-11-20
 

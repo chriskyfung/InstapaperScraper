@@ -181,7 +181,7 @@ The tool is designed with a modular architecture for reliability and maintainabi
 
 ### SQLite (`output/bookmarks.db`)
 
-A SQLite database file is created with an `articles` table containing `id`, `title`, and `url` columns.
+A SQLite database file is created with an `articles` table. The table includes `id`, `title`, and `url` columns. If the `--add-read-url` flag is used, a `read_url` column is also included.
 
 ## Development & Testing
 

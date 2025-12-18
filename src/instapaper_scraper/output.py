@@ -31,17 +31,16 @@ def get_sqlite_create_table_sql(add_read_url: bool = False) -> str:
         f"{SQLITE_URL_COL} TEXT NOT NULL",
     ]
     if add_read_url:
-        columns.insert(1, f"{SQLITE_READ_URL_COL} TEXT")
+        columns.append(
+            f"{SQLITE_READ_URL_COL} TEXT GENERATED ALWAYS AS ('{INSTAPAPER_READ_URL}' || {SQLITE_ID_COL}) VIRTUAL"
+        )
     return f"CREATE TABLE IF NOT EXISTS {SQLITE_TABLE_NAME} ({', '.join(columns)})"
 
 
-def get_sqlite_insert_sql(add_read_url: bool = False) -> str:
+def get_sqlite_insert_sql() -> str:
     """Returns the SQL statement to insert an article."""
     cols = [SQLITE_ID_COL, SQLITE_TITLE_COL, SQLITE_URL_COL]
     placeholders = [f":{SQLITE_ID_COL}", f":{SQLITE_TITLE_COL}", f":{SQLITE_URL_COL}"]
-    if add_read_url:
-        cols.insert(1, SQLITE_READ_URL_COL)
-        placeholders.insert(1, f":{SQLITE_READ_URL_COL}")
     return f"INSERT OR REPLACE INTO {SQLITE_TABLE_NAME} ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"
 
 
@@ -82,7 +81,7 @@ def save_to_sqlite(
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
     cursor.execute(get_sqlite_create_table_sql(add_read_url))
-    cursor.executemany(get_sqlite_insert_sql(add_read_url), data)
+    cursor.executemany(get_sqlite_insert_sql(), data)
     conn.commit()
     conn.close()
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=db_name))
