@@ -1,7 +1,9 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
-from instapaper_scraper import cli
+import importlib
+from cryptography.fernet import Fernet
+from instapaper_scraper import cli, constants
 
 
 @pytest.fixture
@@ -40,6 +42,8 @@ def test_load_config_priority(monkeypatch, tmp_path):
         '[user_config]\nkey="user_config_value"'
     )
     monkeypatch.setattr(Path, "home", lambda: user_home)
+    monkeypatch.setattr(constants, "CONFIG_DIR", user_config_dir)
+    importlib.reload(cli)
 
     # Create working directory config file
     (tmp_path / "config.toml").write_text(
@@ -64,73 +68,84 @@ def test_load_config_priority(monkeypatch, tmp_path):
     assert config.get("user_config", {}).get("key") == "user_config_value"
 
 
-def test_session_file_resolution_priority(
-    mock_auth, mock_client, mock_save, monkeypatch, tmp_path
-):
+def test_session_file_resolution_priority(monkeypatch, tmp_path):
     """Tests the resolution priority for session and key files."""
-    mock_auth.return_value.login.return_value = True
-    mock_client.return_value.get_all_articles.return_value = []
-
     monkeypatch.chdir(tmp_path)
+
+    # Generate a valid key
+    valid_key = Fernet.generate_key()
 
     # Setup all possible file locations
     user_home = tmp_path / "home"
     user_config_dir = user_home / ".config" / "instapaper-scraper"
     user_config_dir.mkdir(parents=True)
     (user_config_dir / ".instapaper_session").touch()
-    (user_config_dir / ".session_key").touch()
+    (user_config_dir / ".session_key").write_bytes(valid_key)
 
     (tmp_path / ".instapaper_session").touch()
-    (tmp_path / ".session_key").touch()
+    (tmp_path / ".session_key").write_bytes(valid_key)
 
     cli_session_path = tmp_path / "cli_session.file"
     cli_key_path = tmp_path / "cli_key.file"
     cli_session_path.touch()
-    cli_key_path.touch()
+    cli_key_path.write_bytes(valid_key)
 
     monkeypatch.setattr(Path, "home", lambda: user_home)
+    monkeypatch.setattr(constants, "CONFIG_DIR", user_config_dir)
+    importlib.reload(cli)
 
-    # Case 1: CLI arguments provided
-    monkeypatch.setattr(
-        "sys.argv",
-        [
-            "instapaper-scraper",
-            "--session-file",
-            str(cli_session_path),
-            "--key-file",
-            str(cli_key_path),
-        ],
-    )
-    with patch("instapaper_scraper.cli.load_config", return_value={}):
-        with patch("builtins.input", return_value="0"):
-            cli.main()
+    with patch("instapaper_scraper.cli.InstapaperAuthenticator") as mock_auth, patch(
+        "instapaper_scraper.cli.InstapaperClient"
+    ) as mock_client, patch("instapaper_scraper.cli.save_articles") as mock_save:
+        mock_auth.return_value.login.return_value = True
+        mock_client.return_value.get_all_articles.return_value = []
 
-    called_kwargs = mock_auth.call_args[1]
-    assert called_kwargs["session_file"] == cli_session_path
-    assert called_kwargs["key_file"] == cli_key_path
+        # Case 1: CLI arguments provided
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "instapaper-scraper",
+                "--session-file",
+                str(cli_session_path),
+                "--key-file",
+                str(cli_key_path),
+            ],
+        )
+        with patch("instapaper_scraper.cli.load_config", return_value={}):
+            with patch("builtins.input", return_value="0"):
+                with patch("getpass.getpass", return_value="password"):
+                    cli.main()
 
-    mock_auth.reset_mock()
+        called_kwargs = mock_auth.call_args[1]
+        assert called_kwargs["session_file"] == cli_session_path
+        assert called_kwargs["key_file"] == cli_key_path
 
-    # Case 2: Files in working directory
-    monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
-    with patch("instapaper_scraper.cli.load_config", return_value={}):
-        with patch("builtins.input", return_value="0"):
-            cli.main()
+        mock_auth.reset_mock()
 
-    called_kwargs = mock_auth.call_args[1]
-    assert called_kwargs["session_file"] == Path(".instapaper_session")
-    assert called_kwargs["key_file"] == Path(".session_key")
+        # Case 2: Files in working directory
+        monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
+        with patch("instapaper_scraper.cli.load_config", return_value={}):
+            with patch("builtins.input", return_value="0"):
+                with patch("getpass.getpass", return_value="password"):
+                    cli.main()
 
-    mock_auth.reset_mock()
+        called_kwargs = mock_auth.call_args[1]
+        assert called_kwargs["session_file"] == Path(".instapaper_session")
+        assert called_kwargs["key_file"] == Path(".session_key")
 
-    # Case 3: Files in user config directory
-    (tmp_path / ".instapaper_session").unlink()
-    (tmp_path / ".session_key").unlink()
+        mock_auth.reset_mock()
 
-    with patch("instapaper_scraper.cli.load_config", return_value={}):
-        with patch("builtins.input", return_value="0"):
-            cli.main()
+        # Case 3: Files in user config directory
+        (tmp_path / ".instapaper_session").unlink()
+        (tmp_path / ".session_key").unlink()
 
-    called_kwargs = mock_auth.call_args[1]
-    assert called_kwargs["session_file"] == (user_config_dir / ".instapaper_session")
-    assert called_kwargs["key_file"] == (user_config_dir / ".session_key")
+        with patch("instapaper_scraper.cli.load_config", return_value={}):
+            with patch("builtins.input", return_value="0"):
+                with patch("getpass.getpass", return_value="password"):
+                    cli.main()
+
+        called_kwargs = mock_auth.call_args[1]
+        assert called_kwargs["session_file"] == (
+            user_config_dir / ".instapaper_session"
+        )
+        assert called_kwargs["key_file"] == (user_config_dir / ".session_key")

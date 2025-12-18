@@ -15,6 +15,13 @@ from .auth import InstapaperAuthenticator
 from .api import InstapaperClient
 from .output import save_articles
 from .exceptions import ScraperStructureChanged
+from .constants import APP_NAME, CONFIG_DIR
+
+# --- Constants ---
+CONFIG_FILENAME = "config.toml"
+DEFAULT_SESSION_FILENAME = ".instapaper_session"
+DEFAULT_KEY_FILENAME = ".session_key"
+DEFAULT_OUTPUT_FILENAME = "output/bookmarks.{ext}"
 
 
 def _resolve_path(
@@ -38,10 +45,9 @@ def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
     It checks the provided path, then config.toml in the project root,
     and finally ~/.config/instapaper-scraper/config.toml.
     """
-    app_name = "instapaper-scraper"
     default_paths = [
-        Path("config.toml"),
-        Path.home() / ".config" / app_name / "config.toml",
+        Path(CONFIG_FILENAME),
+        CONFIG_DIR / CONFIG_FILENAME,
     ]
 
     paths_to_check = []
@@ -158,21 +164,20 @@ def main():
             output_filename = config["output_filename"]
         else:
             ext = "db" if args.format == "sqlite" else args.format
-            output_filename = f"output/bookmarks.{ext}"
+            output_filename = DEFAULT_OUTPUT_FILENAME.format(ext=ext)
 
     session = requests.Session()
 
     # Resolve session and key file paths
-    app_name = "instapaper-scraper"
-    user_config_dir = Path.home() / ".config" / app_name
-
     session_file = _resolve_path(
         args.session_file,
-        ".instapaper_session",
-        user_config_dir / ".instapaper_session",
+        DEFAULT_SESSION_FILENAME,
+        CONFIG_DIR / DEFAULT_SESSION_FILENAME,
     )
     key_file = _resolve_path(
-        args.key_file, ".session_key", user_config_dir / ".session_key"
+        args.key_file,
+        DEFAULT_KEY_FILENAME,
+        CONFIG_DIR / DEFAULT_KEY_FILENAME,
     )
 
     # 1. Authenticate
