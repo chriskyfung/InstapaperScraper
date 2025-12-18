@@ -281,9 +281,6 @@ def test_get_page_url(client, folder_info, expected_url_path):
     """Test _get_page_url constructs correct URLs for different folder_info."""
     page = 1
     expected_url = f"{INSTAPAPER_BASE_URL}{expected_url_path}{page}"
-    if folder_info and folder_info.get("id") and folder_info.get("slug"):
-        expected_url = f"{INSTAPAPER_BASE_URL}{client.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
-
     assert client._get_page_url(page, folder_info) == expected_url
 
 

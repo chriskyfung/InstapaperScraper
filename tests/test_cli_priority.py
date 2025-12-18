@@ -1,33 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from pathlib import Path
 import importlib
 from cryptography.fernet import Fernet
 from instapaper_scraper import cli, constants
-
-
-@pytest.fixture
-def mock_auth(monkeypatch):
-    """Fixture to mock the InstapaperAuthenticator."""
-    mock = MagicMock()
-    monkeypatch.setattr("instapaper_scraper.cli.InstapaperAuthenticator", mock)
-    return mock
-
-
-@pytest.fixture
-def mock_client(monkeypatch):
-    """Fixture to mock the InstapaperClient."""
-    mock = MagicMock()
-    monkeypatch.setattr("instapaper_scraper.cli.InstapaperClient", mock)
-    return mock
-
-
-@pytest.fixture
-def mock_save(monkeypatch):
-    """Fixture to mock the save_articles function."""
-    mock = MagicMock()
-    monkeypatch.setattr("instapaper_scraper.cli.save_articles", mock)
-    return mock
 
 
 def test_load_config_priority(monkeypatch, tmp_path):
@@ -94,9 +69,10 @@ def test_session_file_resolution_priority(monkeypatch, tmp_path):
     monkeypatch.setattr(constants, "CONFIG_DIR", user_config_dir)
     importlib.reload(cli)
 
-    with patch("instapaper_scraper.cli.InstapaperAuthenticator") as mock_auth, patch(
-        "instapaper_scraper.cli.InstapaperClient"
-    ) as mock_client, patch("instapaper_scraper.cli.save_articles") as mock_save:
+    with (
+        patch("instapaper_scraper.cli.InstapaperAuthenticator") as mock_auth,
+        patch("instapaper_scraper.cli.InstapaperClient") as mock_client,
+    ):
         mock_auth.return_value.login.return_value = True
         mock_client.return_value.get_all_articles.return_value = []
 
