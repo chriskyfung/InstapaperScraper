@@ -237,6 +237,26 @@ def test_folder_mode_url_construction(client, session):
         assert m.last_request.url == expected_url
 
 
+def test_429_error_with_retry_after(client, session, monkeypatch):
+    """Test handling of 429 error with a Retry-After header."""
+    with requests_mock.Mocker() as m:
+        mock_sleep = MagicMock()
+        monkeypatch.setattr("time.sleep", mock_sleep)
+
+        m.get(
+            "https://www.instapaper.com/u/1",
+            [
+                {"status_code": 429, "headers": {"Retry-After": "5"}},
+                {"text": get_mock_html(1)},
+            ],
+        )
+
+        client.get_articles(page=1)
+
+        assert m.call_count == 2
+        mock_sleep.assert_called_once_with(5)
+        
+
 def test_malformed_article_is_skipped(client, session, caplog):
     """Test that a malformed article is skipped and a warning is logged."""
     with requests_mock.Mocker() as m:
@@ -375,8 +395,13 @@ def test_get_articles_all_retries_fail_timeout(client, session):
         assert m.call_count == 2
 
 
-def test_get_articles_handles_parsing_type_error(client, caplog):
+def test_get_articles_handles_parsing_type_error(client, caplog, monkeypatch):
     """Test that a TypeError in _parse_article_data is handled."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+    client.max_retries = 2
+    client.backoff_factor = 0.01
+
     with requests_mock.Mocker() as m:
         m.get("https://www.instapaper.com/u/1", text=get_mock_html(1))
 
@@ -390,6 +415,7 @@ def test_get_articles_handles_parsing_type_error(client, caplog):
                     "Scraping failed after multiple retries for an unknown reason"
                     in caplog.text
                 )
+    assert mock_sleep.call_count == client.max_retries
 
 
 def test_get_articles_scraper_structure_changed_re_raise(client, session):
