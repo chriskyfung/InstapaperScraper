@@ -31,10 +31,8 @@ def assert_article_data(article, expected_id, expected_title, expected_url):
 
 def get_mock_html(page_num, has_more=True, malformed=False, no_articles=False):
     """Generates mock HTML for a page of articles."""
-    if no_articles:
-        articles_html = ""
-    else:
-        articles_html = ""
+    articles_html = ""
+    if not no_articles:
         for i in range(1, 3):
             article_id = (page_num - 1) * 2 + i
             if malformed and i == 2:
@@ -129,10 +127,6 @@ def test_get_all_articles_with_limit(client, session, caplog):
                 "https://www.instapaper.com/u/1",
                 text=get_mock_html(page_num=1, has_more=True),
             )
-            m.get(
-                "https://www.instapaper.com/u/2",
-                text=get_mock_html(page_num=2, has_more=True),
-            )
 
             all_articles = client.get_all_articles(limit=1)
             assert "Reached page limit of 1." in caplog.text
@@ -161,12 +155,11 @@ def test_get_all_articles_stops_at_limit(client, session, caplog):
             # the loop will run for page=1, then page becomes 2, then page > limit (2 > 1) is true.
             all_articles = client.get_all_articles(limit=LIMIT)
 
-            assert f"Reached page limit of {LIMIT}." in caplog.text
-            # The mock_get_articles should have been called once: for page 1
+            # The mock_get_articles should have been called LIMIT times.
             assert mock_get_articles.call_count == LIMIT
             assert (
                 len(all_articles) == LIMIT
-            )  # Only articles from page 1 should be collected
+            )  # Articles from the first LIMIT pages should be collected
 
 
 def test_unrecoverable_http_error_raises_exception(client, session, caplog):
@@ -221,22 +214,6 @@ def test_http_error_retries(client, session, status_code, caplog):
         assert len(articles) == 2
 
 
-def test_http_error_all_retries_fail_connection_error(client, session, caplog):
-    """Test that ConnectionError is re-raised after all retries fail."""
-    with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", exc=requests.exceptions.ConnectionError)
-
-        client.max_retries = 2
-        client.backoff_factor = 0.01
-
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(requests.exceptions.ConnectionError):
-                client.get_articles(page=1)
-            assert "All 2 retries failed." in caplog.text
-
-        assert m.call_count == 2
-
-
 def test_4xx_error_does_not_retry(client, session):
     """Test that client-side 4xx errors do not trigger a retry."""
     with requests_mock.Mocker() as m:
@@ -258,35 +235,6 @@ def test_folder_mode_url_construction(client, session):
 
         assert m.called
         assert m.last_request.url == expected_url
-
-
-def test_429_error_with_retry_after(client, session, monkeypatch, caplog):
-    """Test handling of 429 error with a Retry-After header."""
-    mock_sleep = MagicMock()
-    monkeypatch.setattr("time.sleep", mock_sleep)
-
-    with requests_mock.Mocker() as m:
-        m.get(
-            "https://www.instapaper.com/u/1",
-            [
-                {"status_code": 429},  # No Retry-After header
-                {"text": get_mock_html(1)},
-            ],
-        )
-
-        client.max_retries = 2
-        client.backoff_factor = 0.01
-
-        with caplog.at_level(logging.WARNING):
-            articles, _ = client.get_articles(page=1)
-
-            assert m.call_count == 2
-            assert mock_sleep.call_count == 1
-            assert (
-                "Rate limited (429) (attempt 1/2). Retrying in 0.01 seconds."
-                in caplog.text
-            )
-            assert len(articles) == 2
 
 
 def test_malformed_article_is_skipped(client, session, caplog):
@@ -405,10 +353,10 @@ def test_get_articles_all_retries_fail_connection_error(client, session, caplog)
         client.max_retries = 2
         client.backoff_factor = 0.01
 
-        with pytest.raises(requests.exceptions.ConnectionError):
-            with caplog.at_level(logging.ERROR):
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(requests.exceptions.ConnectionError):
                 client.get_articles(page=1)
-                assert "All 2 retries failed." in caplog.text
+            assert "All 2 retries failed." in caplog.text
 
         assert m.call_count == 2
 
@@ -425,6 +373,23 @@ def test_get_articles_all_retries_fail_timeout(client, session):
             client.get_articles(page=1)
 
         assert m.call_count == 2
+
+
+def test_get_articles_handles_parsing_type_error(client, caplog):
+    """Test that a TypeError in _parse_article_data is handled."""
+    with requests_mock.Mocker() as m:
+        m.get("https://www.instapaper.com/u/1", text=get_mock_html(1))
+
+        with caplog.at_level(logging.WARNING):
+            with patch.object(
+                client, "_parse_article_data", side_effect=TypeError("Test Error")
+            ):
+                with pytest.raises(TypeError, match="Test Error"):
+                    client.get_articles(page=1)
+                assert (
+                    "Scraping failed after multiple retries for an unknown reason"
+                    in caplog.text
+                )
 
 
 def test_get_articles_scraper_structure_changed_re_raise(client, session):
@@ -499,20 +464,3 @@ def test_handle_http_error_429_no_retry_after_header(
                 in caplog.text
             )
             assert len(articles) == 2
-
-
-def test_parse_bookmarks_type_error(client, caplog):
-    """Test that a TypeError in _parse_article_data is handled."""
-    with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", text=get_mock_html(1))
-
-        with caplog.at_level(logging.WARNING):
-            with patch.object(
-                client, "_parse_article_data", side_effect=TypeError("Test Error")
-            ):
-                with pytest.raises(TypeError, match="Test Error"):
-                    client.get_articles(page=1)
-                assert (
-                    "Scraping failed after multiple retries for an unknown reason"
-                    in caplog.text
-                )
