@@ -96,6 +96,11 @@ def main():
     parser.add_argument("--username", help="Instapaper username.")
     parser.add_argument("--password", help="Instapaper password.")
     parser.add_argument(
+        "--add-read-url",
+        action="store_true",
+        help="Add a 'read_url' column to the output with the full Instapaper read URL.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -162,9 +167,13 @@ def main():
     user_config_dir = Path.home() / ".config" / app_name
 
     session_file = _resolve_path(
-        args.session_file, ".instapaper_session", user_config_dir / ".instapaper_session"
+        args.session_file,
+        ".instapaper_session",
+        user_config_dir / ".instapaper_session",
     )
-    key_file = _resolve_path(args.key_file, ".session_key", user_config_dir / ".session_key")
+    key_file = _resolve_path(
+        args.key_file, ".session_key", user_config_dir / ".session_key"
+    )
 
     # 1. Authenticate
     authenticator = InstapaperAuthenticator(
@@ -195,7 +204,12 @@ def main():
         sys.exit(1)
 
     # 3. Save Articles
-    save_articles(all_articles, args.format, output_filename)
+    save_articles(
+        all_articles,
+        args.format,
+        output_filename,
+        add_read_url=args.add_read_url,
+    )
 
 
 if __name__ == "__main__":

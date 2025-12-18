@@ -5,12 +5,10 @@ import requests_mock
 import logging
 from unittest.mock import MagicMock
 from urllib.parse import parse_qs
-from pathlib import Path
 
 from instapaper_scraper.auth import (
     InstapaperAuthenticator,
     get_encryption_key,
-    InstapaperConstants,
 )
 
 
@@ -170,9 +168,6 @@ def test_full_login_flow_uses_credentials(authenticator, monkeypatch):
 
     assert authenticator.login() is True
     mock_save.assert_called_once()
-
-
-
 
 
 def test_login_with_credentials_interactive_input(authenticator, session, monkeypatch):
