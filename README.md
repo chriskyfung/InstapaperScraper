@@ -155,9 +155,9 @@ The tool is designed with a modular architecture for reliability and maintainabi
 ### CSV (`output/bookmarks.csv`)
 
 ```csv
-"id", "title", "url", "read_url"
-"999901234", "Article 1", "https://www.example.com/page-1/", "https://www.instapaper.com/read/999901234"
-"999002345", "Article 2", "https://www.example.com/page-2/", "https://www.instapaper.com/read/999002345"
+"id","read_url","title","url"
+"999901234","https://www.instapaper.com/read/999901234","Article 1","https://www.example.com/page-1/"
+"999002345","https://www.instapaper.com/read/999002345","Article 2","https://www.example.com/page-2/"
 ```
 
 ### JSON (`output/bookmarks.json`)
