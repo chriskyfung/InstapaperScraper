@@ -113,7 +113,7 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 | `--config-path <path>`| Path to the configuration file. Searches `~/.config/instapaper-scraper/config.toml` and `config.toml` in the current directory by default. |
 | `--folder <value>` | Specify a folder by key, ID, or slug from your `config.toml`. **Requires a configuration file to be loaded.** Use `none` to explicitly disable folder mode. If a configuration file is not found or fails to load, and this option is used (not set to `none`), the program will exit. |
 | `--format <format>` | Output format (`csv`, `json`, `sqlite`). Default: `csv`. |
-| `--output <filename>` | Specify a custom output filename. |
+| `--output <filename>` | Specify a custom output filename. The file extension will be automatically corrected to match the selected format. |
 | `--username <user>` | Your Instapaper account username. |
 | `--password <pass>` | Your Instapaper account password. |
 | `--add-instapaper-url` | Adds a `instapaper_url` column to the output, containing a full, clickable URL for each article. |
@@ -125,9 +125,10 @@ You can control the output format using the `--format` argument. The supported f
 - `csv` (default): Exports data to `output/bookmarks.csv`.
 - `json`: Exports data to `output/bookmarks.json`.
 - `sqlite`: Exports data to an `articles` table in `output/bookmarks.db`.
-- `--output <filename>`: Specify a custom output filename.
 
 If the `--format` flag is omitted, the script will default to `csv`.
+
+When using `--output <filename>`, the file extension is automatically corrected to match the chosen format. For example, `instapaper-scraper --format json --output my_articles.txt` will create `my_articles.json`.
 
 #### Opening Articles in Instapaper
 

@@ -7,6 +7,7 @@ import csv
 from unittest.mock import patch, MagicMock
 
 from instapaper_scraper.output import (
+    _correct_ext,
     save_to_csv,
     save_to_json,
     save_to_sqlite,
@@ -44,6 +45,26 @@ def sample_articles():
 def output_dir(tmp_path):
     """Fixture for a temporary output directory."""
     return tmp_path / "output"
+
+
+class TestCorrectExt:
+    @pytest.mark.parametrize(
+        "filename, format, expected",
+        [
+            ("test.csv", "csv", "test.csv"),
+            ("test.json", "json", "test.json"),
+            ("test.db", "sqlite", "test.db"),
+            ("test", "csv", "test.csv"),
+            ("test.txt", "json", "test.json"),
+            ("test.wrong", "sqlite", "test.db"),
+            ("path/to/test", "csv", "path/to/test.csv"),
+            ("path/to/test.txt", "json", "path/to/test.json"),
+            ("test.txt", "unknown", "test.txt"),
+        ],
+    )
+    def test_correct_ext(self, filename, format, expected):
+        """Test that the extension is corrected for various formats."""
+        assert _correct_ext(filename, format) == expected
 
 
 def test_get_sqlite_create_table_sql_without_url():
@@ -231,14 +252,14 @@ def test_save_to_sqlite_with_instapaper_url_old_sqlite(
 
 @pytest.mark.parametrize("add_instapaper_url", [True, False])
 @pytest.mark.parametrize(
-    "format, filename",
+    "format, expected_filename",
     [("csv", "test.csv"), ("json", "test.json"), ("sqlite", "test.db")],
 )
 def test_save_articles_dispatcher(
-    sample_articles, output_dir, format, filename, add_instapaper_url, caplog
+    sample_articles, output_dir, format, expected_filename, add_instapaper_url, caplog
 ):
     """Test the main save_articles dispatcher function."""
-    output_file = output_dir / filename
+    output_file = output_dir / expected_filename
     with caplog.at_level(logging.INFO):
         save_articles(
             sample_articles(),
@@ -248,6 +269,29 @@ def test_save_articles_dispatcher(
         )
     assert output_file.exists()
     assert f"Saved 3 articles to {output_file}" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "format, initial_filename, expected_filename",
+    [
+        ("csv", "output.txt", "output.csv"),
+        ("json", "output.csv", "output.json"),
+        ("sqlite", "output", "output.db"),
+    ],
+)
+def test_save_articles_corrects_extension(
+    sample_articles, output_dir, format, initial_filename, expected_filename, caplog
+):
+    """Test that save_articles corrects the output file extension."""
+    output_file = output_dir / initial_filename
+    expected_file = output_dir / expected_filename
+
+    with caplog.at_level(logging.INFO):
+        save_articles(sample_articles(), format, str(output_file))
+
+    assert not output_file.exists()  # The original file should not be created
+    assert expected_file.exists()
+    assert f"Saved 3 articles to {expected_file}" in caplog.text
 
 
 def test_save_articles_no_data(output_dir, caplog):
