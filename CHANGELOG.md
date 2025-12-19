@@ -8,14 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2025-12-19
 
 ### Added
-- Added an `--add-instapaper-url` command-line argument to include a new `instapaper_url` column in the output, containing a full, clickable URL for each article.
+- A new `--add-instapaper-url` command-line argument to include a full, clickable URL for each article in the output.
 
 ### Changed
-- Improved the CSV output to be RFC 4180 compliant, with all fields quoted and robust handling of special characters.
-- Optimized SQLite output to use a generated column for `instapaper_url`, reducing database size and improving data integrity.
-- Improved SQLite compatibility by adding a fallback for versions older than 3.31.0 when using the `--add-instapaper-url` option.
-- The output filename extension is now automatically corrected based on the selected format (e.g., providing `--output my-file.txt --format csv` will result in `my-file.csv`).
-- Refactored internal logic for file extension handling to improve readability and maintainability.
+- **Output & Export**:
+  - The output filename extension is now automatically corrected based on the selected format (e.g., providing `--output my-file.txt --format csv` will result in `my-file.csv`).
+  - CSV output is now fully RFC 4180 compliant, with all fields quoted to improve compatibility with spreadsheet applications.
+  - SQLite output is optimized to use a generated column for the `instapaper_url` on modern SQLite versions (>=3.31.0), with a fallback for older versions to ensure compatibility.
+- **Robustness & Error Handling**:
+  - Improved the CLI's resilience by adding robust error handling to gracefully manage exceptions during the file-saving process.
+  - Enhanced the API client's robustness in handling malformed HTML and network errors, particularly for rate-limiting (HTTP 429) scenarios.
+- **Internal Refactoring**:
+  - Restructured internal constants management into a centralized and more organized architecture, improving code clarity and maintainability.
 
 ## [1.0.0] - 2025-11-20
 
