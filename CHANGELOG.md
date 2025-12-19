@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-12-18
+## [1.1.0] - 2025-12-19
 
 ### Added
 - Added an `--add-instapaper-url` command-line argument to include a new `instapaper_url` column in the output, containing a full, clickable URL for each article.
@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved the CSV output to be RFC 4180 compliant, with all fields quoted and robust handling of special characters.
 - Optimized SQLite output to use a generated column for `instapaper_url`, reducing database size and improving data integrity.
 - Improved SQLite compatibility by adding a fallback for versions older than 3.31.0 when using the `--add-instapaper-url` option.
+- The output filename extension is now automatically corrected based on the selected format (e.g., providing `--output my-file.txt --format csv` will result in `my-file.csv`).
+- Refactored internal logic for file extension handling to improve readability and maintainability.
 
 ## [1.0.0] - 2025-11-20
 
