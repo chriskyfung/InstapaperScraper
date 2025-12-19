@@ -209,12 +209,17 @@ def main():
         sys.exit(1)
 
     # 3. Save Articles
-    save_articles(
-        all_articles,
-        args.format,
-        output_filename,
-        add_instapaper_url=args.add_instapaper_url,
-    )
+    try:
+        save_articles(
+            all_articles,
+            args.format,
+            output_filename,
+            add_instapaper_url=args.add_instapaper_url,
+        )
+        logging.info("Articles scraped and saved successfully.")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during saving: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
