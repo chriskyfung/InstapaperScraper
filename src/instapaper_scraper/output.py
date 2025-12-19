@@ -113,6 +113,18 @@ def save_to_sqlite(
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=db_name))
 
 
+def _correct_ext(filename: str, format: str) -> str:
+    """Corrects the filename extension based on the specified format."""
+    name, _ = os.path.splitext(filename)
+    if format == "csv":
+        return f"{name}.csv"
+    if format == "json":
+        return f"{name}.json"
+    if format == "sqlite":
+        return f"{name}.db"
+    return filename
+
+
 def save_articles(
     data: List[Dict[str, Any]],
     format: str,
@@ -125,6 +137,8 @@ def save_articles(
     if not data:
         logging.info(LOG_NO_ARTICLES)
         return
+
+    filename = _correct_ext(filename, format)
 
     # Add the instapaper_url to the data for formats that don't auto-generate it
     if add_instapaper_url and format in ("csv", "json"):
