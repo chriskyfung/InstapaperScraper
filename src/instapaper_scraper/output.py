@@ -115,13 +115,14 @@ def save_to_sqlite(
 
 def _correct_ext(filename: str, format: str) -> str:
     """Corrects the filename extension based on the specified format."""
-    name, _ = os.path.splitext(filename)
-    if format == "csv":
-        return f"{name}.csv"
-    if format == "json":
-        return f"{name}.json"
-    if format == "sqlite":
-        return f"{name}.db"
+    extension_map = {
+        "csv": ".csv",
+        "json": ".json",
+        "sqlite": ".db",
+    }
+    if format in extension_map:
+        name, _ = os.path.splitext(filename)
+        return name + extension_map[format]
     return filename
 
 
