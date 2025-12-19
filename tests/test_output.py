@@ -59,15 +59,12 @@ class TestCorrectExt:
             ("test.wrong", "sqlite", "test.db"),
             ("path/to/test", "csv", "path/to/test.csv"),
             ("path/to/test.txt", "json", "path/to/test.json"),
+            ("test.txt", "unknown", "test.txt"),
         ],
     )
     def test_correct_ext(self, filename, format, expected):
         """Test that the extension is corrected for various formats."""
         assert _correct_ext(filename, format) == expected
-
-    def test_correct_ext_unknown_format(self):
-        """Test that the filename is unchanged for an unknown format."""
-        assert _correct_ext("test.txt", "unknown") == "test.txt"
 
 
 def test_get_sqlite_create_table_sql_without_url():
