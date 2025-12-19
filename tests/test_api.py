@@ -2,11 +2,12 @@ import pytest
 import requests
 import requests_mock
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from bs4 import BeautifulSoup
 
 from instapaper_scraper.api import InstapaperClient
 from instapaper_scraper.exceptions import ScraperStructureChanged
-from instapaper_scraper.constants import INSTAPAPER_BASE_URL
+from instapaper_scraper.constants import INSTAPAPER_BASE_URL, KEY_ID
 
 
 @pytest.fixture
@@ -28,25 +29,26 @@ def assert_article_data(article, expected_id, expected_title, expected_url):
     assert article["url"] == expected_url
 
 
-def get_mock_html(page_num, has_more=True, malformed=False):
+def get_mock_html(page_num, has_more=True, malformed=False, no_articles=False):
     """Generates mock HTML for a page of articles."""
     articles_html = ""
-    for i in range(1, 3):
-        article_id = (page_num - 1) * 2 + i
-        if malformed and i == 2:
-            articles_html += f"""
-            <article id="article_{article_id}">
-                <div class="no_title">Article {article_id}</div>
-                <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
-            </article>
-            """
-        else:
-            articles_html += f"""
-            <article id="article_{article_id}">
-                <div class="article_title">Article {article_id}</div>
-                <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
-            </article>
-            """
+    if not no_articles:
+        for i in range(1, 3):
+            article_id = (page_num - 1) * 2 + i
+            if malformed and i == 2:
+                articles_html += f"""
+                <article id="article_{article_id}">
+                    <div class="no_title">Article {article_id}</div>
+                    <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
+                </article>
+                """
+            else:
+                articles_html += f"""
+                <article id="article_{article_id}">
+                    <div class="article_title">Article {article_id}</div>
+                    <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
+                </article>
+                """
 
     pagination_html = (
         '<div class="paginate_older"><a>Older</a></div>' if has_more else ""
@@ -117,44 +119,82 @@ def test_get_all_articles_multiple_pages(client, session):
         assert_article_data(all_articles[3], "4", "Article 4", "http://example.com/4")
 
 
-def test_get_all_articles_with_limit(client, session):
+def test_get_all_articles_with_limit(client, session, caplog):
     """Test that get_all_articles respects the page limit."""
-    with requests_mock.Mocker() as m:
-        m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, has_more=True),
-        )
-        m.get(
-            "https://www.instapaper.com/u/2",
-            text=get_mock_html(page_num=2, has_more=False),
-        )
+    with caplog.at_level(logging.INFO):
+        with requests_mock.Mocker() as m:
+            m.get(
+                "https://www.instapaper.com/u/1",
+                text=get_mock_html(page_num=1, has_more=True),
+            )
 
-        all_articles = client.get_all_articles(limit=1)
+            all_articles = client.get_all_articles(limit=1)
+            assert "Reached page limit of 1." in caplog.text
 
         assert len(all_articles) == 2
         assert_article_data(all_articles[0], "1", "Article 1", "http://example.com/1")
         assert_article_data(all_articles[1], "2", "Article 2", "http://example.com/2")
 
 
-def test_scraper_structure_changed_exception(client, session):
-    """Test that ScraperStructureChanged is raised if the HTML is unexpected."""
-    with requests_mock.Mocker() as m:
-        m.get(
-            "https://www.instapaper.com/u/1",
-            text="<html><body>Invalid HTML</body></html>",
-        )
+def test_get_all_articles_stops_at_limit(client, session, caplog):
+    """Test that get_all_articles stops scraping when the limit is reached, even if more pages are available."""
+    LIMIT = 3
+    with caplog.at_level(logging.INFO):
+        # Instead of mocking the URL directly, we mock the internal get_articles method
+        # to control its return values and has_more flag.
+        # This requires patching the method *on the instance*
+        with patch.object(client, "get_articles") as mock_get_articles:
+            mock_get_articles.side_effect = lambda page, folder_info: (
+                ([{f"id_{page}_1": f"title_{page}_1"}], True)
+                if page <= LIMIT + 5
+                else ([], False)
+            )
 
-        with pytest.raises(
-            ScraperStructureChanged, match="Could not find article list"
-        ):
-            client.get_articles(page=1)
+            # Set a limit such that it should trigger the logging.info
+            # If limit is 1, and get_articles always returns has_more=True,
+            # the loop will run for page=1, then page becomes 2, then page > limit (2 > 1) is true.
+            all_articles = client.get_all_articles(limit=LIMIT)
+
+            # The mock_get_articles should have been called LIMIT times.
+            assert mock_get_articles.call_count == LIMIT
+            assert (
+                len(all_articles) == LIMIT
+            )  # Articles from the first LIMIT pages should be collected
+
+
+def test_unrecoverable_http_error_raises_exception(client, session, caplog):
+    """Test that an unrecoverable HTTP error (e.g., 403) raises an exception."""
+    with requests_mock.Mocker() as m:
+        m.get("https://www.instapaper.com/u/1", status_code=403)  # Forbidden
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(requests.exceptions.HTTPError) as excinfo:
+                client.get_articles(page=1)
+            assert "Request failed with unrecoverable status code 403." in caplog.text
+            assert excinfo.value.response.status_code == 403
+        assert m.call_count == 1  # Should not retry
+
+
+def test_parse_article_data_missing_article_element(client, caplog):
+    """Test that _parse_article_data handles a missing article element by logging a warning and skipping it."""
+    html = get_mock_html(page_num=1)  # Contains article_1 and article_2
+    soup = BeautifulSoup(html, "html.parser")
+
+    # article_ids will contain an ID that's not in the soup
+    article_ids = ["1", "999"]  # 999 does not exist in the mock HTML
+
+    with caplog.at_level(logging.WARNING):
+        parsed_data = client._parse_article_data(soup, article_ids, page=1)
+
+        assert len(parsed_data) == 1
+        assert parsed_data[0][KEY_ID] == "1"
+        assert "Article element 'article_999' not found." in caplog.text
 
 
 @pytest.mark.parametrize("status_code", [500, 502, 503])
-def test_http_error_retries(client, session, status_code):
+def test_http_error_retries(client, session, status_code, caplog):
     """Test that the client retries on 5xx server errors."""
     with requests_mock.Mocker() as m:
-        # Fail the first two times, succeed on the third
         m.get(
             "https://www.instapaper.com/u/1",
             [
@@ -164,27 +204,30 @@ def test_http_error_retries(client, session, status_code):
             ],
         )
 
-        # Set a very small backoff for testing purposes
         client.backoff_factor = 0.01
 
-        articles, has_more = client.get_articles(page=1)
+        with caplog.at_level(logging.WARNING):
+            articles, has_more = client.get_articles(page=1)
+            assert f"Request failed with status {status_code}" in caplog.text
 
         assert m.call_count == 3
         assert len(articles) == 2
 
 
-def test_http_error_all_retries_fail(client, session):
-    """Test that an exception is raised after all retries fail."""
+def test_http_error_all_retries_fail(client, session, caplog):
+    """Test that an exception is raised after all retries fail for a 5xx error."""
     with requests_mock.Mocker() as m:
         m.get("https://www.instapaper.com/u/1", status_code=500)
 
         client.max_retries = 2
         client.backoff_factor = 0.01
 
-        with pytest.raises(requests.exceptions.HTTPError):
-            client.get_articles(page=1)
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(requests.exceptions.HTTPError):
+                client.get_articles(page=1)
+            assert f"All {client.max_retries} retries failed." in caplog.text
 
-        assert m.call_count == 2
+        assert m.call_count == client.max_retries
 
 
 def test_4xx_error_does_not_retry(client, session):
@@ -284,7 +327,7 @@ def test_get_page_url(client, folder_info, expected_url_path):
     assert client._get_page_url(page, folder_info) == expected_url
 
 
-def test_get_articles_connection_error_retries(client, session, monkeypatch):
+def test_get_articles_connection_error_retries(client, session, monkeypatch, caplog):
     """Test that get_articles retries on ConnectionError."""
     mock_sleep = MagicMock()
     monkeypatch.setattr("time.sleep", mock_sleep)
@@ -293,20 +336,24 @@ def test_get_articles_connection_error_retries(client, session, monkeypatch):
         m.get(
             "https://www.instapaper.com/u/1",
             [
-                {"exc": requests.exceptions.ConnectionError},
-                {"exc": requests.exceptions.ConnectionError},
+                {"exc": requests.exceptions.ConnectionError("Test error")},
                 {"text": get_mock_html(1)},
             ],
         )
 
-        client.max_retries = 3
+        client.max_retries = 2
         client.backoff_factor = 0.01
 
-        articles, has_more = client.get_articles(page=1)
+        with caplog.at_level(logging.WARNING):
+            articles, has_more = client.get_articles(page=1)
+            assert (
+                "Network error (ConnectionError) (attempt 1/2). Retrying in 0.01 seconds."
+                in caplog.text
+            )
 
-        assert m.call_count == 3
+        assert m.call_count == 2
         assert len(articles) == 2
-        assert mock_sleep.call_count == 2
+        assert mock_sleep.call_count == 1
 
 
 def test_get_articles_timeout_retries(client, session, monkeypatch):
@@ -334,7 +381,7 @@ def test_get_articles_timeout_retries(client, session, monkeypatch):
         assert mock_sleep.call_count == 2
 
 
-def test_get_articles_all_retries_fail_connection_error(client, session):
+def test_get_articles_all_retries_fail_connection_error(client, session, caplog):
     """Test that ConnectionError is re-raised after all retries fail."""
     with requests_mock.Mocker() as m:
         m.get("https://www.instapaper.com/u/1", exc=requests.exceptions.ConnectionError)
@@ -342,8 +389,10 @@ def test_get_articles_all_retries_fail_connection_error(client, session):
         client.max_retries = 2
         client.backoff_factor = 0.01
 
-        with pytest.raises(requests.exceptions.ConnectionError):
-            client.get_articles(page=1)
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(requests.exceptions.ConnectionError):
+                client.get_articles(page=1)
+            assert "All 2 retries failed." in caplog.text
 
         assert m.call_count == 2
 
@@ -362,6 +411,29 @@ def test_get_articles_all_retries_fail_timeout(client, session):
         assert m.call_count == 2
 
 
+def test_get_articles_handles_parsing_type_error(client, caplog, monkeypatch):
+    """Test that a TypeError in _parse_article_data is handled."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+    client.max_retries = 2
+    client.backoff_factor = 0.01
+
+    with requests_mock.Mocker() as m:
+        m.get("https://www.instapaper.com/u/1", text=get_mock_html(1))
+
+        with caplog.at_level(logging.WARNING):
+            with patch.object(
+                client, "_parse_article_data", side_effect=TypeError("Test Error")
+            ):
+                with pytest.raises(TypeError, match="Test Error"):
+                    client.get_articles(page=1)
+                assert (
+                    "Scraping failed after multiple retries for an unknown reason"
+                    in caplog.text
+                )
+    assert mock_sleep.call_count == client.max_retries
+
+
 def test_get_articles_scraper_structure_changed_re_raise(client, session):
     """Test that ScraperStructureChanged is re-raised immediately."""
     with requests_mock.Mocker() as m:
@@ -376,7 +448,7 @@ def test_get_articles_scraper_structure_changed_re_raise(client, session):
         assert m.call_count == 1
 
 
-def test_get_articles_unexpected_exception_after_retries(client, session):
+def test_get_articles_unexpected_exception_after_retries(client, session, caplog):
     """Test that an unexpected exception is raised after all retries fail."""
     with requests_mock.Mocker() as m:
         m.get("https://www.instapaper.com/u/1", exc=Exception("Unknown error"))
@@ -384,8 +456,10 @@ def test_get_articles_unexpected_exception_after_retries(client, session):
         client.max_retries = 2
         client.backoff_factor = 0.01
 
-        with pytest.raises(Exception, match="Unknown error"):
-            client.get_articles(page=1)
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(Exception, match="Unknown error"):
+                client.get_articles(page=1)
+            assert "All 2 retries failed." in caplog.text
 
         assert m.call_count == 2
 
