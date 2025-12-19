@@ -44,8 +44,6 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch, capl
 
     with caplog.at_level(logging.INFO):
         with patch("builtins.input", return_value="0"):
-            # Simulate login successful message, as mock_auth bypasses actual auth.py logging
-            logging.info("Login successful.")
             cli.main()
 
     mock_auth.assert_called_once()
@@ -57,7 +55,6 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch, capl
         mock_articles, "csv", "output/bookmarks.csv", add_instapaper_url=False
     )
     assert "No configuration file found at any default location." in caplog.text
-    assert "Login successful." in caplog.text
     assert "Articles scraped and saved successfully." in caplog.text
 
 
@@ -583,11 +580,8 @@ def test_cli_save_articles_exception(
     )
 
 
-def test_cli_main_block_execution(monkeypatch, mock_auth, mock_client, mock_save):
+def test_cli_main_block_execution():
     """Test the 'if __name__ == "__main__":' block."""
-    mock_auth.return_value.login.return_value = True
-    mock_client.return_value.get_all_articles.return_value = []
-    monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
 
     # We use a trick to cover the 'if __name__ == "__main__":' block
     # without actually running main() which is hard to mock correctly in that context.
