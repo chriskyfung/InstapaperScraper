@@ -34,14 +34,14 @@
 
 A powerful and reliable Python tool to automate the export of all your saved Instapaper bookmarks into various formats, giving you full ownership of your data.
 
-## Support the Project
+## 🙏 Support the Project
 
 `Instapaper Scraper` is a free and open-source project that requires significant time and effort to maintain and improve. If you find this tool useful, please consider supporting its development. Your contribution helps ensure the project stays healthy, active, and continuously updated.
 
 - **[Sponsor on GitHub](https://github.com/sponsors/chriskyfung):** The best way to support the project with recurring monthly donations. Tiers with special rewards like priority support are available!
 - **[Buy Me a Coffee](https://www.buymeacoffee.com/chriskyfung):** Perfect for a one-time thank you.
 
-## Features
+## ✨ Features
 
 - Scrapes all bookmarks from your Instapaper account.
 - Supports scraping from specific folders.
@@ -49,13 +49,13 @@ A powerful and reliable Python tool to automate the export of all your saved Ins
 - Securely stores your session for future runs.
 - Modern, modular, and tested architecture.
 
-## Getting Started
+## 🚀 Getting Started
 
-### 1. Requirements
+### 📋 1. Requirements
 
 - Python 3.9+
 
-### 2. Installation
+### 📦 2. Installation
 
 This package is available on PyPI and can be installed with pip:
 
@@ -63,7 +63,7 @@ This package is available on PyPI and can be installed with pip:
 pip install instapaper-scraper
 ```
 
-### 3. Usage
+### 💻 3. Usage
 
 Run the tool from the command line, specifying your desired output format:
 
@@ -78,9 +78,9 @@ instapaper-scraper --format json
 instapaper-scraper --format sqlite --output my_articles.db
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-### Authentication
+### 🔐 Authentication
 
 The script authenticates using one of the following methods, in order of priority:
 
@@ -100,7 +100,7 @@ The script authenticates using one of the following methods, in order of priorit
 
 > **Note on Security:** Your session file (`.instapaper_session`) and the encryption key (`.session_key`) are stored with secure permissions (read/write for the owner only) to protect your credentials.
 
-### Folder Configuration
+### 📁 Folder Configuration
 
 You can define and quickly access your Instapaper folders using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
 
@@ -135,7 +135,7 @@ output_filename = "python-articles.db"
 
 When a `config.toml` file is present and no `--folder` argument is provided, the scraper will prompt you to select a folder. You can also specify a folder directly using the `--folder` argument with its key, ID, or slug. Use `--folder=none` to explicitly disable folder mode and scrape all articles.
 
-### Command-line Arguments
+### 💻 Command-line Arguments
 
 | Argument | Description |
 | --- | --- |
@@ -147,7 +147,7 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 | `--password <pass>` | Your Instapaper account password. |
 | `--add-instapaper-url` | Adds a `instapaper_url` column to the output, containing a full, clickable URL for each article. |
 
-### Output Formats
+### 📄 Output Formats
 
 You can control the output format using the `--format` argument. The supported formats are:
 
@@ -159,7 +159,7 @@ If the `--format` flag is omitted, the script will default to `csv`.
 
 When using `--output <filename>`, the file extension is automatically corrected to match the chosen format. For example, `instapaper-scraper --format json --output my_articles.txt` will create `my_articles.json`.
 
-#### Opening Articles in Instapaper
+#### 📖 Opening Articles in Instapaper
 
 The output data includes a unique `id` for each article. You can use this ID to construct a URL to the article's reader view: `https://www.instapaper.com/read/<article_id>`.
 
@@ -171,7 +171,7 @@ instapaper-scraper --add-instapaper-url
 
 This adds a `instapaper_url` field to each article in the JSON output and a `instapaper_url` column in the CSV and SQLite outputs. The original `id` field is preserved.
 
-## How It Works
+## 🛠️ How It Works
 
 The tool is designed with a modular architecture for reliability and maintainability.
 
@@ -180,9 +180,9 @@ The tool is designed with a modular architecture for reliability and maintainabi
 3. **Data Collection**: All fetched articles are aggregated into a single list.
 4. **Export**: Finally, the collected data is written to a file in your chosen format (`.csv`, `.json`, or `.db`).
 
-## Example Output
+## 📊 Example Output
 
-### CSV (`output/bookmarks.csv`) (with --add-instapaper-url)
+### 📄 CSV (`output/bookmarks.csv`) (with --add-instapaper-url)
 
 ```csv
 "id","instapaper_url","title","url"
@@ -190,7 +190,7 @@ The tool is designed with a modular architecture for reliability and maintainabi
 "999002345","https://www.instapaper.com/read/999002345","Article 2","https://www.example.com/page-2/"
 ```
 
-### JSON (`output/bookmarks.json`) (with --add-instapaper-url)
+### 📄 JSON (`output/bookmarks.json`) (with --add-instapaper-url)
 
 ```json
 [
@@ -209,26 +209,26 @@ The tool is designed with a modular architecture for reliability and maintainabi
 ]
 ```
 
-### SQLite (`output/bookmarks.db`)
+### 🗄️ SQLite (`output/bookmarks.db`)
 
 A SQLite database file is created with an `articles` table. The table includes `id`, `title`, and `url` columns. If the `--add-instapaper-url` flag is used, a `instapaper_url` column is also included. This feature is fully backward-compatible and will automatically adapt to the user's installed SQLite version, using an efficient generated column on modern versions (3.31.0+) and a fallback for older versions.
 
-## Support and Community
+## 🤗 Support and Community
 
 - **🐛 Bug Reports:** For any bugs or unexpected behavior, please [open an issue on GitHub](https://github.com/chriskyfung/InstapaperScraper/issues).
 - **💬 Questions & General Discussion:** For questions, feature requests, or general discussion, please use our [GitHub Discussions](https://github.com/chriskyfung/InstapaperScraper/discussions).
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Whether it's a bug fix, a new feature, or documentation improvements, please feel free to open a pull request.
 
 Please read the **[Contribution Guidelines](CONTRIBUTING.md)** before you start.
 
-## Development & Testing
+## 🧑‍💻 Development & Testing
 
 This project uses `pytest` for testing, `black` for code formatting, and `ruff` for linting.
 
-### Setup
+### 🔧 Setup
 
 To install the development dependencies:
 
@@ -236,7 +236,7 @@ To install the development dependencies:
 pip install -e .[dev]
 ```
 
-### Running the Scraper
+### ▶️ Running the Scraper
 
 To run the scraper directly without installing the package:
 
@@ -244,7 +244,7 @@ To run the scraper directly without installing the package:
 python -m src.instapaper_scraper.cli
 ```
 
-### Testing
+### ✅ Testing
 
 To run the tests, execute the following command from the project root:
 
@@ -258,7 +258,7 @@ To check test coverage:
 pytest --cov=src/instapaper_scraper --cov-report=term-missing
 ```
 
-### Code Quality
+### ✨ Code Quality
 
 To format the code with `black`:
 
@@ -278,10 +278,10 @@ To automatically fix linting errors:
 ruff check . --fix
 ```
 
-## Disclaimer
+## 📜 Disclaimer
 
 This script requires valid Instapaper credentials. Use it responsibly and in accordance with Instapaper’s Terms of Service.
 
-## License
+## 📄 License
 
-This project is licensed under the terms of the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for the full license text.
+This project is licensed under the terms of the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for the full license text.
