@@ -34,13 +34,6 @@
 
 A powerful and reliable Python tool to automate the export of all your saved Instapaper bookmarks into various formats, giving you full ownership of your data.
 
-## 🙏 Support the Project
-
-`Instapaper Scraper` is a free and open-source project that requires significant time and effort to maintain and improve. If you find this tool useful, please consider supporting its development. Your contribution helps ensure the project stays healthy, active, and continuously updated.
-
-- **[Sponsor on GitHub](https://github.com/sponsors/chriskyfung):** The best way to support the project with recurring monthly donations. Tiers with special rewards like priority support are available!
-- **[Buy Me a Coffee](https://www.buymeacoffee.com/chriskyfung):** Perfect for a one-time thank you.
-
 ## ✨ Features
 
 - Scrapes all bookmarks from your Instapaper account.
@@ -218,6 +211,13 @@ A SQLite database file is created with an `articles` table. The table includes `
 - **🐛 Bug Reports:** For any bugs or unexpected behavior, please [open an issue on GitHub](https://github.com/chriskyfung/InstapaperScraper/issues).
 - **💬 Questions & General Discussion:** For questions, feature requests, or general discussion, please use our [GitHub Discussions](https://github.com/chriskyfung/InstapaperScraper/discussions).
 
+## 🙏 Support the Project
+
+`Instapaper Scraper` is a free and open-source project that requires significant time and effort to maintain and improve. If you find this tool useful, please consider supporting its development. Your contribution helps ensure the project stays healthy, active, and continuously updated.
+
+- **[Sponsor on GitHub](https://github.com/sponsors/chriskyfung):** The best way to support the project with recurring monthly donations. Tiers with special rewards like priority support are available!
+- **[Buy Me a Coffee](https://www.buymeacoffee.com/chriskyfung):** Perfect for a one-time thank you.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Whether it's a bug fix, a new feature, or documentation improvements, please feel free to open a pull request.
@@ -285,3 +285,10 @@ This script requires valid Instapaper credentials. Use it responsibly and in acc
 ## 📄 License
 
 This project is licensed under the terms of the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for the full license text.
+
+## 🙏 Support the Project
+
+`Instapaper Scraper` is a free and open-source project that requires significant time and effort to maintain and improve. If you find this tool useful, please consider supporting its development. Your contribution helps ensure the project stays healthy, active, and continuously updated.
+
+- **[Sponsor on GitHub](https://github.com/sponsors/chriskyfung):** The best way to support the project with recurring monthly donations. Tiers with special rewards like priority support are available!
+- **[Buy Me a Coffee](https://www.buymeacoffee.com/chriskyfung):** Perfect for a one-time thank you.
