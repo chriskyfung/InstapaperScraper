@@ -3,7 +3,7 @@ import getpass
 import logging
 import stat
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 from cryptography.fernet import Fernet
 import requests
@@ -67,8 +67,8 @@ class InstapaperAuthenticator:
         session: requests.Session,
         session_file: Union[str, Path],
         key_file: Union[str, Path],
-        username: str = None,
-        password: str = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
     ):
         self.session = session
         self.session_file = Path(session_file)
@@ -175,7 +175,7 @@ class InstapaperAuthenticator:
             logging.error(self.LOG_LOGIN_FAILED)
             return False
 
-    def _save_session(self):
+    def _save_session(self) -> None:
         """Saves the current session cookies to an encrypted file."""
         required_cookies = self.REQUIRED_COOKIES
         cookies_to_save = [

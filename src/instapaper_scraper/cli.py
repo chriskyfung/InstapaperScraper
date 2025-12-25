@@ -3,7 +3,7 @@ import logging
 import argparse
 import requests
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Dict, Any, Optional, cast
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -39,7 +39,7 @@ def _resolve_path(
     return user_dir_filename
 
 
-def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
+def load_config(config_path_str: Union[str, None] = None) -> Optional[Dict[str, Any]]:
     """
     Loads configuration from a TOML file.
     It checks the provided path, then config.toml in the project root,
@@ -50,7 +50,7 @@ def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
         CONFIG_DIR / CONFIG_FILENAME,
     ]
 
-    paths_to_check = []
+    paths_to_check: List[Path] = []
     if config_path_str:
         paths_to_check.insert(0, Path(config_path_str).expanduser())
     paths_to_check.extend(default_paths)
@@ -60,7 +60,7 @@ def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
             try:
                 with open(path, "rb") as f:
                     logging.info(f"Loading configuration from {path}")
-                    return tomllib.load(f)
+                    return cast(Dict[str, Any], tomllib.load(f))
             except tomllib.TOMLDecodeError as e:
                 logging.error(f"Error decoding TOML file at {path}: {e}")
                 return None
@@ -68,7 +68,7 @@ def load_config(config_path_str: Union[str, None] = None) -> Union[dict, None]:
     return None
 
 
-def main():
+def main() -> None:
     """
     Main entry point for the Instapaper scraper CLI.
     """
@@ -144,7 +144,7 @@ def main():
         print("  0: none (non-folder mode)")
         for i, folder in enumerate(folders):
             display_name = folder.get("key") or folder.get("slug") or folder.get("id")
-            print(f"  {i+1}: {display_name}")
+            print(f"  {i + 1}: {display_name}")
 
         try:
             choice = int(input("Select a folder (enter a number): "))
