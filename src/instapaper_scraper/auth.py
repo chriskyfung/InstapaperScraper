@@ -72,6 +72,7 @@ class InstapaperAuthenticator:
     ):
         self.session = session
         self.session_file = Path(session_file)
+        self.key_file = Path(key_file)
         self.key = get_encryption_key(key_file)
         self.fernet = Fernet(self.key)
         self.username = username

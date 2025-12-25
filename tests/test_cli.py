@@ -601,3 +601,20 @@ def test_cli_main_block_execution():
             mock_main.assert_called_once()
     except StopIteration:
         pytest.fail("Could not find __main__ block in cli.py")
+
+
+def test_cli_unexpected_error_in_save(
+    mock_auth, mock_client, mock_save, monkeypatch, caplog
+):
+    """Test that a generic exception in save_articles is caught."""
+    mock_auth.return_value.login.return_value = True
+    mock_client.return_value.get_all_articles.return_value = [{"id": "1"}]
+    mock_save.side_effect = Exception("Something broke")
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
+
+    with patch("instapaper_scraper.cli.load_config", return_value={}):
+        with pytest.raises(SystemExit) as e:
+            cli.main()
+
+    assert e.value.code == 1
+    assert "An unexpected error occurred during saving: Something broke" in caplog.text
