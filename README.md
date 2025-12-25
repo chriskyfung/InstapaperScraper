@@ -1,7 +1,7 @@
 # Instapaper Scraper
 
 <!-- Badges -->
-<p align="center"> 
+<p align="center">
   <a href="https://pypi.org/project/instapaper-scraper/">
     <img src="https://img.shields.io/pypi/v/instapaper-scraper.svg" alt="PyPI version">
   </a>
@@ -17,9 +17,6 @@
   <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fchriskyfung%2FInstapaperScraper%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml" alt="Python Version from PEP 621 TOML">
   <a href="https://github.com/astral-sh/ruff">
     <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json" alt="Ruff">
-  </a>
-  <a href="https://github.com/psf/black">
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black">
   </a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">
     <img src="https://img.shields.io/github/license/chriskyfung/InstapaperScraper" alt="GitHub License">
@@ -226,7 +223,7 @@ Please read the **[Contribution Guidelines](CONTRIBUTING.md)** before you start.
 
 ## 🧑‍💻 Development & Testing
 
-This project uses `pytest` for testing, `black` for code formatting, and `ruff` for linting.
+This project uses `pytest` for testing, `ruff` for code formatting and linting, and `mypy` for static type checking.
 
 ### 🔧 Setup
 
@@ -234,6 +231,12 @@ To install the development dependencies:
 
 ```sh
 pip install -e .[dev]
+```
+
+To set up the pre-commit hooks:
+
+```sh
+pre-commit install
 ```
 
 ### ▶️ Running the Scraper
@@ -260,10 +263,10 @@ pytest --cov=src/instapaper_scraper --cov-report=term-missing
 
 ### ✨ Code Quality
 
-To format the code with `black`:
+To format the code with `ruff`:
 
 ```sh
-black .
+ruff format .
 ```
 
 To check for linting errors with `ruff`:
@@ -276,6 +279,12 @@ To automatically fix linting errors:
 
 ```sh
 ruff check . --fix
+```
+
+To run static type checking with `mypy`:
+
+```sh
+mypy src
 ```
 
 ## 📜 Disclaimer
