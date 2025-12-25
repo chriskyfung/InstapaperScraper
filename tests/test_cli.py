@@ -561,23 +561,18 @@ def test_cli_unexpected_error(mock_auth, mock_client, monkeypatch, caplog):
 def test_cli_save_articles_exception(
     mock_auth, mock_client, mock_save, monkeypatch, caplog
 ):
-    """Test that the CLI handles exceptions during article saving."""
+    """Test that a generic exception in save_articles is caught."""
     mock_auth.return_value.login.return_value = True
-    mock_articles = [{"id": "1", "title": "Test", "url": "http://test.com"}]
-    mock_client.return_value.get_all_articles.return_value = mock_articles
-    mock_save.side_effect = Exception("Failed to save articles")
+    mock_client.return_value.get_all_articles.return_value = [{"id": "1"}]
+    mock_save.side_effect = Exception("Something broke")
     monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
 
     with patch("instapaper_scraper.cli.load_config", return_value={}):
         with pytest.raises(SystemExit) as e:
-            with patch("builtins.input", return_value="0"):
-                cli.main()
+            cli.main()
 
     assert e.value.code == 1
-    assert (
-        "An unexpected error occurred during saving: Failed to save articles"
-        in caplog.text
-    )
+    assert "An unexpected error occurred during saving: Something broke" in caplog.text
 
 
 def test_cli_main_block_execution():

@@ -222,3 +222,47 @@ def test_save_session_no_known_cookies(authenticator, session_file, caplog):
         authenticator._save_session()
         assert "Could not find a known session cookie to save." in caplog.text
         assert not session_file.exists()  # File should not be created
+
+
+def test_full_login_flow_fails(authenticator, monkeypatch):
+    """Test the main `login` method when both loading and credential login fail."""
+    monkeypatch.setattr(authenticator, "_load_session", lambda: False)
+    monkeypatch.setattr(authenticator, "_login_with_credentials", lambda: False)
+    mock_save = MagicMock()
+    monkeypatch.setattr(authenticator, "_save_session", mock_save)
+
+    assert authenticator.login() is False
+    mock_save.assert_not_called()
+
+
+def test_load_session_with_request_exception(authenticator, session_file, caplog):
+    """Test _load_session returns False when _verify_session raises an exception."""
+    # Save a valid session first
+    authenticator.session.cookies.set("pfu", "user123", domain=".instapaper.com")
+    authenticator._save_session()
+
+    # Create a new authenticator
+    new_session = requests.Session()
+    new_auth = InstapaperAuthenticator(
+        new_session,
+        session_file=str(session_file),
+        key_file=str(authenticator.key_file),
+    )
+
+    # Mock the verification request to raise an exception
+    with requests_mock.Mocker() as m:
+        m.get("https://www.instapaper.com/u", exc=requests.exceptions.ConnectionError)
+        with caplog.at_level(logging.WARNING):
+            assert new_auth._load_session() is False
+            assert "Session loaded but verification failed." in caplog.text
+
+
+def test_login_with_credentials_failure(authenticator, session, caplog):
+    """Test the _login_with_credentials method when the login fails."""
+    authenticator.username = "user"
+    authenticator.password = "pass"
+    with requests_mock.Mocker() as m:
+        m.post("https://www.instapaper.com/user/login", status_code=200)
+        with caplog.at_level(logging.ERROR):
+            assert authenticator._login_with_credentials() is False
+            assert "Login failed. Please check your credentials." in caplog.text

@@ -302,3 +302,12 @@ def test_save_articles_no_data(output_dir, caplog):
 
     assert not output_file.exists()
     assert "No articles found to save." in caplog.text
+
+
+def test_save_articles_unknown_format(sample_articles, output_dir, caplog):
+    """Test that save_articles logs an error for an unknown format."""
+    output_file = output_dir / "bookmarks.txt"
+    with caplog.at_level(logging.ERROR):
+        save_articles(sample_articles(), "unknown", str(output_file))
+    assert "Unknown output format: unknown" in caplog.text
+    assert not output_file.exists()

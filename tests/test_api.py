@@ -506,3 +506,60 @@ def test_handle_http_error_429_no_retry_after_header(
                 in caplog.text
             )
             assert len(articles) == 2
+
+
+def test_http_error_429_with_invalid_retry_after(client, session, monkeypatch, caplog):
+    """Test 429 error with an invalid Retry-After header."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://www.instapaper.com/u/1",
+            [
+                {"status_code": 429, "headers": {"Retry-After": "invalid"}},
+                {"text": get_mock_html(1)},
+            ],
+        )
+
+        client.max_retries = 2
+        client.backoff_factor = 0.01
+
+        with caplog.at_level(logging.WARNING):
+            client.get_articles(page=1)
+            assert "Rate limited (429)" in caplog.text
+
+        assert m.call_count == 2
+        mock_sleep.assert_called_once()
+
+
+def test_get_all_articles_reaches_limit(client, session, caplog):
+    """Test that get_all_articles stops when the page limit is reached."""
+    with caplog.at_level(logging.INFO):
+        with requests_mock.Mocker() as m:
+            m.get(
+                "https://www.instapaper.com/u/1",
+                text=get_mock_html(page_num=1, has_more=True),
+            )
+            m.get(
+                "https://www.instapaper.com/u/2",
+                text=get_mock_html(page_num=2, has_more=True),
+            )
+            client.get_all_articles(limit=1)
+            assert "Reached page limit of 1." in caplog.text
+
+
+def test_parse_article_data_missing_link_href(client, caplog):
+    """Test parsing an article where the link element is missing the href attribute."""
+    html = """
+    <article id="article_1">
+        <div class="article_title">Article 1</div>
+        <div class="title_meta"><a>example.com</a></div>
+    </article>
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    with caplog.at_level(logging.WARNING):
+        articles = client._parse_article_data(soup, ["1"], 1)
+        assert len(articles) == 0
+        assert "Could not parse article with id 1" in caplog.text
+        assert "Link element or href not found" in caplog.text

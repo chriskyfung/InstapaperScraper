@@ -133,16 +133,19 @@ class InstapaperClient:
                     if not isinstance(article, Tag):
                         continue
                     article_id_val = article.get(KEY_ID)
-                    if isinstance(article_id_val, str):
+
+                    # Ensure article_id_val is a string before calling replace
+                    # If it's a list, take the first element. This is a pragmatic
+                    # approach since 'id' attributes should ideally be unique strings.
+                    if isinstance(article_id_val, list):
+                        article_id_val = article_id_val[0] if article_id_val else None
+
+                    if isinstance(article_id_val, str) and article_id_val.startswith(
+                        self.ARTICLE_ID_PREFIX
+                    ):
                         article_ids.append(
                             article_id_val.replace(self.ARTICLE_ID_PREFIX, "")
                         )
-                    elif isinstance(article_id_val, list):
-                        for item in article_id_val:
-                            if isinstance(item, str):
-                                article_ids.append(
-                                    item.replace(self.ARTICLE_ID_PREFIX, "")
-                                )
 
                 data = self._parse_article_data(soup, article_ids, page)
                 has_more = soup.find(class_=self.PAGINATE_OLDER_CLASS) is not None
