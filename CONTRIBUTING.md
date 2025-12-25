@@ -45,16 +45,16 @@ Unsure where to start? Look for issues tagged with `good first issue` or `help w
 ### Pull Request Process
 
 1.  **Fork the repository** and create your branch from `master`.
-2.  **Set up your development environment.** Instructions are in the `README.md` under the "Development & Testing" section.
+2.  **Set up your development environment.** Instructions are in the `README.md` under the "Development & Testing" section. Don't forget to run `pre-commit install` after installing dev dependencies.
 3.  **Make your changes.** Ensure you add or update tests as appropriate.
 4.  **Ensure the test suite passes** by running `pytest`.
-5.  **Format your code** with `black .` and check for linting issues with `ruff check .`.
-6.  **Commit your changes** with a clear and concise commit message.
+5.  **Format your code** with `ruff format .`, check for linting issues with `ruff check .`, and run static type checks with `mypy src`.
+6.  **Commit your changes** with a clear and concise commit message. Pre-commit hooks will automatically run `ruff` and `mypy`.
 7.  **Push your branch** to your fork and submit a pull request to the main repository.
 
 ## Styleguides
 
-- **Code:** We use `black` for code formatting and `ruff` for linting. Please run these tools before committing your changes.
+- **Code:** We use `ruff` for consistent code formatting and linting. We also use `mypy` for static type checking. Pre-commit hooks are configured to run these tools automatically.
 - **Git Commit Messages:** Please follow conventional commit standards if possible, but a clear, descriptive message is the most important thing.
 
 Thank you again for your interest in contributing!

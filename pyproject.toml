@@ -49,21 +49,33 @@ instapaper-scraper = "instapaper_scraper.cli:main"
 [tool.pytest.ini_options]
 pythonpath = "src"
 
-[tool.black]
-line-length = 88
-
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-cov",
-    "black",
     "ruff",
     "types-requests",
     "types-beautifulsoup4",
     "requests-mock",
     "build",
-    "twine"
+    "twine",
+    "mypy",
+    "pre-commit"
 ]

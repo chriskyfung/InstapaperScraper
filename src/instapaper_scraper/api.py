@@ -1,10 +1,11 @@
 import os
 import logging
 import time
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 from .exceptions import ScraperStructureChanged
 from .constants import INSTAPAPER_BASE_URL, KEY_ID, KEY_TITLE, KEY_URL
@@ -123,14 +124,25 @@ class InstapaperClient:
                 soup = BeautifulSoup(response.text, self.HTML_PARSER)
 
                 article_list = soup.find(id=self.ARTICLE_LIST_ID)
-                if not article_list:
+                if not isinstance(article_list, Tag):
                     raise ScraperStructureChanged(self.MSG_ARTICLE_LIST_NOT_FOUND)
 
                 articles = article_list.find_all(self.ARTICLE_TAG)
-                article_ids = [
-                    article[KEY_ID].replace(self.ARTICLE_ID_PREFIX, "")
-                    for article in articles
-                ]
+                article_ids = []
+                for article in articles:
+                    if not isinstance(article, Tag):
+                        continue
+                    article_id_val = article.get(KEY_ID)
+                    if isinstance(article_id_val, str):
+                        article_ids.append(
+                            article_id_val.replace(self.ARTICLE_ID_PREFIX, "")
+                        )
+                    elif isinstance(article_id_val, list):
+                        for item in article_id_val:
+                            if isinstance(item, str):
+                                article_ids.append(
+                                    item.replace(self.ARTICLE_ID_PREFIX, "")
+                                )
 
                 data = self._parse_article_data(soup, article_ids, page)
                 has_more = soup.find(class_=self.PAGINATE_OLDER_CLASS) is not None
@@ -203,14 +215,14 @@ class InstapaperClient:
 
     def _parse_article_data(
         self, soup: BeautifulSoup, article_ids: List[str], page: int
-    ) -> List[Dict[str, str]]:
+    ) -> List[Dict[str, Any]]:
         """Parses the raw HTML to extract structured data for each article."""
         data = []
         for article_id in article_ids:
             article_id_full = f"{self.ARTICLE_ID_PREFIX}{article_id}"
             article_element = soup.find(id=article_id_full)
             try:
-                if not article_element:
+                if not isinstance(article_element, Tag):
                     raise AttributeError(
                         self.MSG_ARTICLE_ELEMENT_NOT_FOUND.format(
                             article_id_full=article_id_full
@@ -218,14 +230,19 @@ class InstapaperClient:
                     )
 
                 title_element = article_element.find(class_=self.ARTICLE_TITLE_CLASS)
-                if not title_element:
+                if not isinstance(title_element, Tag):
                     raise AttributeError(self.MSG_TITLE_ELEMENT_NOT_FOUND)
                 title = title_element.get_text().strip()
 
-                link_element = article_element.find(class_=self.TITLE_META_CLASS).find(
-                    "a"
-                )
-                if not link_element or "href" not in link_element.attrs:
+                meta_element = article_element.find(class_=self.TITLE_META_CLASS)
+                if not isinstance(meta_element, Tag):
+                    raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
+
+                link_element = meta_element.find("a")
+                if (
+                    not isinstance(link_element, Tag)
+                    or "href" not in link_element.attrs
+                ):
                     raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
                 link = link_element["href"]
 
@@ -281,7 +298,7 @@ class InstapaperClient:
             )
             return False
 
-    def _wait_for_retry(self, attempt: int, reason: str):
+    def _wait_for_retry(self, attempt: int, reason: str) -> None:
         """Calculates and waits for an exponential backoff period."""
         sleep_time = self.backoff_factor * (2**attempt)
         logging.warning(

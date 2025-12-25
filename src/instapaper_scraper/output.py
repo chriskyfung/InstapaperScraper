@@ -53,7 +53,7 @@ def get_sqlite_insert_sql(add_instapaper_url_manually: bool = False) -> str:
 
 def save_to_csv(
     data: List[Dict[str, Any]], filename: str, add_instapaper_url: bool = False
-):
+) -> None:
     """Saves a list of articles to a CSV file."""
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w", newline="", encoding="utf-8") as f:
@@ -69,7 +69,7 @@ def save_to_csv(
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=filename))
 
 
-def save_to_json(data: List[Dict[str, Any]], filename: str):
+def save_to_json(data: List[Dict[str, Any]], filename: str) -> None:
     """Saves a list of articles to a JSON file."""
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w", encoding="utf-8") as f:
@@ -79,7 +79,7 @@ def save_to_json(data: List[Dict[str, Any]], filename: str):
 
 def save_to_sqlite(
     data: List[Dict[str, Any]], db_name: str, add_instapaper_url: bool = False
-):
+) -> None:
     """Saves a list of articles to a SQLite database."""
     os.makedirs(os.path.dirname(db_name), exist_ok=True)
     conn = sqlite3.connect(db_name)
@@ -131,7 +131,7 @@ def save_articles(
     format: str,
     filename: str,
     add_instapaper_url: bool = False,
-):
+) -> None:
     """
     Dispatches to the correct save function based on the format.
     """
