@@ -2,21 +2,23 @@
 
 <!-- Badges -->
 <p align="center">
+  <a href="https://github.com/chriskyfung/InstapaperScraper">
+    <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fchriskyfung%2FInstapaperScraper%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml" alt="Python Version from PEP 621 TOML">
+  </a>
+  <a href="https://github.com/astral-sh/ruff">
+    <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json" alt="Ruff">
+  </a>
+  <a href="https://codecov.io/gh/chriskyfung/InstapaperScraper">
+    <img src="https://codecov.io/gh/chriskyfung/InstapaperScraper/graph/badge.svg" alt="Code Coverage">
+  </a>
+  <a href="https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml">
+    <img src="https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  </a>
   <a href="https://pypi.org/project/instapaper-scraper/">
     <img src="https://img.shields.io/pypi/v/instapaper-scraper.svg" alt="PyPI version">
   </a>
   <a href="https://pepy.tech/projects/instapaper-scraper">
     <img src="https://static.pepy.tech/personalized-badge/instapaper-scraper?period=total&left_text=downloads" alt="PyPI Downloads">
-  </a>
-  <a href="https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml">
-    <img src="https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml/badge.svg" alt="CI Status">
-  </a>
-  <a href="https://codecov.io/gh/chriskyfung/InstapaperScraper">
-    <img src="https://codecov.io/gh/chriskyfung/InstapaperScraper/graph/badge.svg" alt="Code Coverage">
-  </a>
-  <img src="https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fchriskyfung%2FInstapaperScraper%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml" alt="Python Version from PEP 621 TOML">
-  <a href="https://github.com/astral-sh/ruff">
-    <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json" alt="Ruff">
   </a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">
     <img src="https://img.shields.io/github/license/chriskyfung/InstapaperScraper" alt="GitHub License">
@@ -25,7 +27,7 @@
     <img src="https://img.shields.io/badge/Sponsor-GitHub-purple?logo=github" alt="GitHub Sponsors Default">
   </a>
   <a href="https://www.buymeacoffee.com/chriskyfung" title="Buy Me A Coffee">
-    <img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=white&labelColor=gray" alt="Buy Me A Coffee">
+    <img src="https://img.shields.io/badge/Support%20Me-Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=white" alt="Buy Me A Coffee">
   </a>
 </p>
 
