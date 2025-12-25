@@ -5,12 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-12-19
+## [1.1.0] - 2025-12-25
 
 ### Added
 - A new `--add-instapaper-url` command-line argument to include a full, clickable URL for each article in the output.
 
 ### Changed
+- **Developer Experience & Tooling**:
+  - Migrated development tools from `black` to `ruff` for formatting and linting, and integrated `pre-commit` hooks to automate code quality checks.
+  - Configured the `mypy` pre-commit hook to only run on the `src/` directory to improve performance.
+- **Testing**:
+  - Added comprehensive tests for API and authentication error handling to improve robustness.
+  - Configured Codecov with new project and pull request coverage targets.
 - **Output & Export**:
   - The output filename extension is now automatically corrected based on the selected format (e.g., providing `--output my-file.txt --format csv` will result in `my-file.csv`).
   - CSV output is now fully RFC 4180 compliant, with all fields quoted to improve compatibility with spreadsheet applications.
@@ -20,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced the API client's robustness in handling malformed HTML and network errors, particularly for rate-limiting (HTTP 429) scenarios.
 - **Internal Refactoring**:
   - Restructured internal constants management into a centralized and more organized architecture, improving code clarity and maintainability.
+- **Documentation**:
+    - Updated project badges in `README.md` for clarity and correctness.
+
+### Fixed
+- Improved type safety and robustness across the codebase.
 
 ## [1.0.0] - 2025-11-20
 
@@ -112,5 +123,3 @@ First official public release on PyPI.
 ### Chore
 - Added an example environment configuration file.
 - Updated the `README.md` to reflect new features like CSV export and folder mode.
-
-
