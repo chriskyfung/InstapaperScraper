@@ -4,7 +4,7 @@ import sqlite3
 import logging
 import io
 import csv
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 
 from instapaper_scraper.output import (
     _correct_ext,
@@ -47,6 +47,25 @@ def output_dir(tmp_path):
     return tmp_path / "output"
 
 
+@pytest.fixture
+def mock_sqlite3():
+    """
+    Fixture to mock the sqlite3 module for dynamic imports.
+    This fixture patches sys.modules to replace the sqlite3 module with a mock.
+    It yields a function that allows tests to configure the mock's version info.
+    """
+    with patch.dict("sys.modules", {"sqlite3": MagicMock()}) as mock_modules:
+        mock_sqlite = mock_modules["sqlite3"]
+
+        def _configure_mock(version_info):
+            # Use PropertyMock to ensure the version comparison works correctly
+            type(mock_sqlite).sqlite_version_info = PropertyMock(
+                return_value=version_info
+            )
+
+        yield _configure_mock, mock_sqlite
+
+
 class TestCorrectExt:
     @pytest.mark.parametrize(
         "filename, format, expected",
@@ -73,16 +92,18 @@ def test_get_sqlite_create_table_sql_without_url():
     assert "instapaper_url" not in sql
 
 
-@patch("sqlite3.sqlite_version_info", (3, 31, 0))
-def test_get_sqlite_create_table_sql_with_url_modern_sqlite():
+def test_get_sqlite_create_table_sql_with_url_modern_sqlite(mock_sqlite3):
     """Test CREATE TABLE SQL with instapaper_url on modern SQLite."""
+    configure_mock, _ = mock_sqlite3
+    configure_mock((3, 31, 0))
     sql = get_sqlite_create_table_sql(add_instapaper_url=True)
     assert "instapaper_url TEXT GENERATED ALWAYS AS" in sql
 
 
-@patch("sqlite3.sqlite_version_info", (3, 30, 0))
-def test_get_sqlite_create_table_sql_with_url_old_sqlite():
+def test_get_sqlite_create_table_sql_with_url_old_sqlite(mock_sqlite3):
     """Test CREATE TABLE SQL with instapaper_url on old SQLite."""
+    configure_mock, _ = mock_sqlite3
+    configure_mock((3, 30, 0))
     sql = get_sqlite_create_table_sql(add_instapaper_url=True)
     assert "instapaper_url TEXT" in sql
     assert "GENERATED" not in sql
@@ -188,15 +209,15 @@ def test_save_to_sqlite(sample_articles, output_dir):
     conn.close()
 
 
-@patch("sqlite3.connect")
-@patch("sqlite3.sqlite_version_info", (3, 31, 0))
 def test_save_to_sqlite_with_instapaper_url_modern_sqlite(
-    mock_connect, sample_articles, output_dir
+    mock_sqlite3, sample_articles, output_dir
 ):
     """Test saving with instapaper_url on modern SQLite."""
+    configure_mock, mock_sqlite = mock_sqlite3
+    configure_mock((3, 31, 0))
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_connect.return_value = mock_conn
+    mock_sqlite.connect.return_value = mock_conn
     mock_conn.cursor.return_value = mock_cursor
 
     articles = sample_articles()
@@ -217,15 +238,15 @@ def test_save_to_sqlite_with_instapaper_url_modern_sqlite(
     assert "instapaper_url" not in executed_data[0]
 
 
-@patch("sqlite3.connect")
-@patch("sqlite3.sqlite_version_info", (3, 30, 0))
 def test_save_to_sqlite_with_instapaper_url_old_sqlite(
-    mock_connect, sample_articles, output_dir
+    mock_sqlite3, sample_articles, output_dir
 ):
     """Test saving with instapaper_url on old SQLite."""
+    configure_mock, mock_sqlite = mock_sqlite3
+    configure_mock((3, 30, 0))
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
-    mock_connect.return_value = mock_conn
+    mock_sqlite.connect.return_value = mock_conn
     mock_conn.cursor.return_value = mock_cursor
 
     articles = sample_articles()
