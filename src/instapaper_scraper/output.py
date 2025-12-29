@@ -17,7 +17,11 @@ LOG_SAVED_ARTICLES = "Saved {count} articles to {filename}"
 LOG_UNKNOWN_FORMAT = "Unknown output format: {format}"
 
 if TYPE_CHECKING:
-    pass
+    # Import for type-checking purposes, and use an alias
+    # to signal to linters like ruff that it is being used.
+    import sqlite3 as sqlite3
+
+    __all__ = ["sqlite3"]
 
 
 def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
