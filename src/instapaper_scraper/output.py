@@ -1,9 +1,6 @@
 import os
-import json
-import sqlite3
 import logging
-import csv
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TYPE_CHECKING
 
 from .constants import INSTAPAPER_READ_URL, KEY_ID, KEY_TITLE, KEY_URL
 
@@ -19,6 +16,9 @@ LOG_NO_ARTICLES = "No articles found to save."
 LOG_SAVED_ARTICLES = "Saved {count} articles to {filename}"
 LOG_UNKNOWN_FORMAT = "Unknown output format: {format}"
 
+if TYPE_CHECKING:
+    pass
+
 
 def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
     """Returns the SQL statement to create the articles table."""
@@ -28,6 +28,8 @@ def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
         f"{KEY_URL} TEXT NOT NULL",
     ]
     if add_instapaper_url:
+        import sqlite3
+
         # The GENERATED ALWAYS AS syntax was added in SQLite 3.31.0
         if sqlite3.sqlite_version_info >= (3, 31, 0):
             columns.append(
@@ -55,6 +57,8 @@ def save_to_csv(
     data: List[Dict[str, Any]], filename: str, add_instapaper_url: bool = False
 ) -> None:
     """Saves a list of articles to a CSV file."""
+    import csv
+
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w", newline="", encoding="utf-8") as f:
         fieldnames = [KEY_ID, KEY_TITLE, KEY_URL]
@@ -71,6 +75,8 @@ def save_to_csv(
 
 def save_to_json(data: List[Dict[str, Any]], filename: str) -> None:
     """Saves a list of articles to a JSON file."""
+    import json
+
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=JSON_INDENT, ensure_ascii=False)
@@ -81,6 +87,8 @@ def save_to_sqlite(
     data: List[Dict[str, Any]], db_name: str, add_instapaper_url: bool = False
 ) -> None:
     """Saves a list of articles to a SQLite database."""
+    import sqlite3
+
     os.makedirs(os.path.dirname(db_name), exist_ok=True)
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
