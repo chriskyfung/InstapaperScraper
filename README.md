@@ -296,3 +296,11 @@ This script requires valid Instapaper credentials. Use it responsibly and in acc
 ## 📄 License
 
 This project is licensed under the terms of the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for the full license text.
+
+## Contributors
+
+<a href="https://github.com/chriskyfung/InstapaperScraper/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=chriskyfung/InstapaperScraper" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
