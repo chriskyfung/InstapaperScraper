@@ -17,6 +17,7 @@
   <a href="https://codecov.io/gh/chriskyfung/InstapaperScraper">
     <img src="https://codecov.io/gh/chriskyfung/InstapaperScraper/graph/badge.svg" alt="Code Coverage">
   </a>
+  <wbr />
   <a href="https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml">
     <img src="https://github.com/chriskyfung/InstapaperScraper/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
