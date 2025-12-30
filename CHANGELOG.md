@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-12-30
+
+### Added
+- A "Contributors" section in `README.md` to visually credit all project contributors.
+
+### Changed
+- **Developer Experience & Tooling**:
+  - Added `ruff` linting and `mypy` static type checking to the CI pipeline to improve code quality.
+  - Integrated automated license compliance checks using `licensecheck` into the CI pipeline.
+  - Configured Dependabot to automatically update GitHub Actions on a weekly basis.
+- **Performance**:
+  - Improved application startup time by deferring the import of `json`, `sqlite3`, and `csv` modules to when they are specifically needed.
+- **Dependencies**:
+  - Updated the `actions/checkout` GitHub Action to v6 and `actions/setup-python` to v6.
+
 ## [1.1.0] - 2025-12-25
 
 ### Added
