@@ -26,6 +26,14 @@ jobs:
         run: |
           licensecheck --zero
 
+      - name: Lint code with ruff
+        run: |
+          ruff check .
+
+      - name: Run type checking with mypy
+        run: |
+          mypy src
+
   build:
     runs-on: ubuntu-latest
     strategy:
