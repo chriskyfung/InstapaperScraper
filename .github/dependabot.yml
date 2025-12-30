@@ -9,16 +9,28 @@ updates:
   - package-ecosystem: "pip"
     # Look for `requirements.txt` file in the `root` directory
     directory: "/"
-    # Check the npm registry for updates every day (weekdays)
+    # Check for updates weekly
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
     groups:
-      - "all-pip-dependencies":
-          patterns:
-            - "*"
-          update-types:
-            - "version-update:semver-patch"
-            - "version-update:semver-minor"
-          commit-message:
-            prefix: "deps(pip):"
-            include-scope: true
+      all-pip-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      all-actions-dependencies:
+        patterns:
+          - "*"
