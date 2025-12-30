@@ -69,6 +69,10 @@ pytest --cov=src/instapaper_scraper --cov-report=term-missing
     ```bash
     mypy src
     ```
+-   **License Checking**: The project uses `licensecheck` to ensure license compliance. To run the license checker, use:
+    ```bash
+    licensecheck --zero
+    ```
 -   **Pre-Commit Hooks**: This project uses `pre-commit` to run checks before each commit. The hooks are defined in `.pre-commit-config.yaml` and include `ruff` and `mypy`.
 -   **Entry Point**: The main entry point for the CLI tool is the `main` function in `src/instapaper_scraper/cli.py`.
 -   **Configuration**: The tool can be configured via a `config.toml` file for specifying folders and output filenames.
