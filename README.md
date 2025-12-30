@@ -289,6 +289,13 @@ To run static type checking with `mypy`:
 mypy src
 ```
 
+To run license checks:
+
+```sh
+licensecheck --fail-licenses GPL-3.0 --zero
+```
+
+
 ## 📜 Disclaimer
 
 This script requires valid Instapaper credentials. Use it responsibly and in accordance with Instapaper’s Terms of Service.

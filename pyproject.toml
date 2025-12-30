@@ -46,6 +46,9 @@ Issues = "https://github.com/chriskyfung/InstapaperScraper/issues"
 [project.scripts]
 instapaper-scraper = "instapaper_scraper.cli:main"
 
+[tool.licensecheck]
+fail-licenses = ["GPL-3.0"]
+
 [tool.pytest.ini_options]
 pythonpath = "src"
 
@@ -77,5 +80,6 @@ dev = [
     "build",
     "twine",
     "mypy",
-    "pre-commit"
+    "pre-commit",
+    "licensecheck"
 ]
