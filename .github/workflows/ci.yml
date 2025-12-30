@@ -24,7 +24,7 @@ jobs:
 
       - name: Run license check
         run: |
-          licensecheck --fail-licenses GPL-3.0 --zero
+          licensecheck --zero
 
   build:
     runs-on: ubuntu-latest

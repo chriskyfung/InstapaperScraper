@@ -35,7 +35,7 @@ dependencies = [
     "soupsieve~=2.8",
     "typing_extensions~=4.15.0",
     "urllib3>=2.5,<2.7",
-    "tomli~=2.0.1; python_version < '3.11'",
+    "tomli~=2.0.1; python_version < '3.11'"
 ]
 
 [project.urls]
@@ -47,7 +47,7 @@ Issues = "https://github.com/chriskyfung/InstapaperScraper/issues"
 instapaper-scraper = "instapaper_scraper.cli:main"
 
 [tool.licensecheck]
-fail-licenses = ["GPL-3.0"]
+license = "GPL-3.0"
 
 [tool.pytest.ini_options]
 pythonpath = "src"

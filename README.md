@@ -292,7 +292,7 @@ mypy src
 To run license checks:
 
 ```sh
-licensecheck --fail-licenses GPL-3.0 --zero
+licensecheck --show-only-failing
 ```
 
 
