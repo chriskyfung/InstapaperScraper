@@ -299,8 +299,6 @@ This project is licensed under the terms of the **GNU General Public License v3.
 
 ## Contributors
 
-<a href="https://github.com/chriskyfung/InstapaperScraper/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=chriskyfung/InstapaperScraper" />
-</a>
+[![Contributors](https://contrib.rocks/image?repo=chriskyfung/InstapaperScraper)](https://github.com/chriskyfung/InstapaperScraper/graphs/contributors)
 
 Made with [contrib.rocks](https://contrib.rocks).
