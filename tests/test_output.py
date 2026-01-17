@@ -209,6 +209,37 @@ def test_save_to_sqlite(sample_articles, output_dir):
     conn.close()
 
 
+def test_save_to_sqlite_with_instapaper_url(sample_articles, output_dir):
+    """Test saving articles to a SQLite database with the instapaper_url."""
+    db_file = output_dir / "bookmarks_with_url.db"
+    articles = sample_articles()
+    save_to_sqlite(articles, str(db_file), add_instapaper_url=True)
+
+    assert db_file.exists()
+    conn = sqlite3.connect(db_file)
+    # Use a row factory to access columns by name
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, title, url, instapaper_url FROM articles ORDER BY id ASC"
+    )
+    rows = cursor.fetchall()
+
+    assert len(rows) == 3
+    assert rows[0]["id"] == "1"
+    assert rows[0]["title"] == "Article One"
+    assert rows[0]["url"] == "http://example.com/1"
+    assert rows[0]["instapaper_url"] == f"{INSTAPAPER_READ_URL}1"
+
+    assert rows[1]["id"] == "2"
+    assert rows[1]["instapaper_url"] == f"{INSTAPAPER_READ_URL}2"
+
+    assert rows[2]["id"] == "3"
+    assert rows[2]["instapaper_url"] == f"{INSTAPAPER_READ_URL}3"
+
+    conn.close()
+
+
 def test_save_to_sqlite_with_instapaper_url_modern_sqlite(
     mock_sqlite3, sample_articles, output_dir
 ):
