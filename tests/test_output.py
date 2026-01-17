@@ -105,14 +105,17 @@ def test_get_sqlite_create_table_sql_with_url_old_sqlite(mock_sqlite3):
     configure_mock, _ = mock_sqlite3
     configure_mock((3, 30, 0))
     sql = get_sqlite_create_table_sql(add_instapaper_url=True)
-    assert "instapaper_url TEXT" in sql
-    assert "GENERATED" not in sql
+    expected_sql = "CREATE TABLE IF NOT EXISTS articles (id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, instapaper_url TEXT)"
+    assert sql == expected_sql
 
 
 def test_get_sqlite_insert_sql_without_manual_url():
     """Test INSERT SQL without manual instapaper_url."""
     sql = get_sqlite_insert_sql(add_instapaper_url_manually=False)
-    assert "instapaper_url" not in sql
+    expected_sql = (
+        "INSERT OR REPLACE INTO articles (id, title, url) VALUES (:id, :title, :url)"
+    )
+    assert sql == expected_sql
 
 
 def test_get_sqlite_insert_sql_with_manual_url():
