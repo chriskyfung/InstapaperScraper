@@ -8,7 +8,13 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 
 from .exceptions import ScraperStructureChanged
-from .constants import INSTAPAPER_BASE_URL, KEY_ID, KEY_TITLE, KEY_URL
+from .constants import (
+    INSTAPAPER_BASE_URL,
+    KEY_ID,
+    KEY_TITLE,
+    KEY_URL,
+    KEY_ARTICLE_PREVIEW,
+)
 
 
 class InstapaperClient:
@@ -272,7 +278,7 @@ class InstapaperClient:
                     preview_element = article_element.find(
                         class_=self.ARTICLE_PREVIEW_CLASS
                     )
-                    article_data["article_preview"] = (
+                    article_data[KEY_ARTICLE_PREVIEW] = (
                         preview_element.get_text().strip()
                         if isinstance(preview_element, Tag)
                         else ""

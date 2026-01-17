@@ -102,7 +102,6 @@ def save_to_csv(
 def save_to_json(
     data: List[Dict[str, Any]],
     filename: str,
-    add_article_preview: bool = False,
 ) -> None:
     """Saves a list of articles to a JSON file."""
     import json
@@ -202,7 +201,7 @@ def save_articles(
             add_article_preview=add_article_preview,
         )
     elif format == "json":
-        save_to_json(data, filename=filename, add_article_preview=add_article_preview)
+        save_to_json(data, filename=filename)
     elif format == "sqlite":
         save_to_sqlite(
             data,
