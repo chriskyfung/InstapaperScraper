@@ -29,17 +29,42 @@ def assert_article_data(article, expected_id, expected_title, expected_url):
     assert article["url"] == expected_url
 
 
-def get_mock_html(page_num, has_more=True, malformed=False, no_articles=False):
+def assert_article_preview_data(
+    article, expected_id, expected_title, expected_url, expected_preview
+):
+    """Helper to assert the structure and content of an article dictionary."""
+    assert article["id"] == expected_id
+    assert article["title"] == expected_title
+    assert article["url"] == expected_url
+    assert article["article_preview"] == expected_preview
+
+
+def get_mock_html(
+    page_num,
+    has_more=True,
+    malformed=False,
+    no_articles=False,
+    with_preview=False,
+    missing_preview=False,
+):
     """Generates mock HTML for a page of articles."""
     articles_html = ""
     if not no_articles:
         for i in range(1, 3):
             article_id = (page_num - 1) * 2 + i
+            preview_html = ""
+            if with_preview:
+                if missing_preview and i == 2:
+                    preview_html = ""
+                else:
+                    preview_html = f'<div class="article_preview">Preview for article {article_id}</div>'
+
             if malformed and i == 2:
                 articles_html += f"""
                 <article id="article_{article_id}">
                     <div class="no_title">Article {article_id}</div>
                     <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
+                    {preview_html}
                 </article>
                 """
             else:
@@ -47,6 +72,7 @@ def get_mock_html(page_num, has_more=True, malformed=False, no_articles=False):
                 <article id="article_{article_id}">
                     <div class="article_title">Article {article_id}</div>
                     <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
+                    {preview_html}
                 </article>
                 """
 
@@ -71,15 +97,27 @@ def test_get_articles_single_page_success(client, session):
     with requests_mock.Mocker() as m:
         m.get(
             "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, has_more=True),
+            text=get_mock_html(page_num=1, has_more=True, with_preview=True),
         )
 
-        articles, has_more = client.get_articles(page=1)
+        articles, has_more = client.get_articles(page=1, add_article_preview=True)
 
         assert has_more is True
         assert len(articles) == 2
-        assert_article_data(articles[0], "1", "Article 1", "http://example.com/1")
-        assert_article_data(articles[1], "2", "Article 2", "http://example.com/2")
+        assert_article_preview_data(
+            articles[0],
+            "1",
+            "Article 1",
+            "http://example.com/1",
+            "Preview for article 1",
+        )
+        assert_article_preview_data(
+            articles[1],
+            "2",
+            "Article 2",
+            "http://example.com/2",
+            "Preview for article 2",
+        )
 
 
 def test_get_articles_last_page(client, session):
@@ -144,10 +182,12 @@ def test_get_all_articles_stops_at_limit(client, session, caplog):
         # to control its return values and has_more flag.
         # This requires patching the method *on the instance*
         with patch.object(client, "get_articles") as mock_get_articles:
-            mock_get_articles.side_effect = lambda page, folder_info: (
-                ([{f"id_{page}_1": f"title_{page}_1"}], True)
-                if page <= LIMIT + 5
-                else ([], False)
+            mock_get_articles.side_effect = (
+                lambda page, folder_info, add_article_preview: (
+                    ([{f"id_{page}_1": f"title_{page}_1"}], True)
+                    if page <= LIMIT + 5
+                    else ([], False)
+                )
             )
 
             # Set a limit such that it should trigger the logging.info
@@ -563,3 +603,62 @@ def test_parse_article_data_missing_link_href(client, caplog):
         assert len(articles) == 0
         assert "Could not parse article with id 1" in caplog.text
         assert "Link element or href not found" in caplog.text
+
+
+def test_get_articles_with_preview(client, session):
+    """Test that the article preview is scraped when requested."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://www.instapaper.com/u/1",
+            text=get_mock_html(page_num=1, with_preview=True),
+        )
+        articles, _ = client.get_articles(page=1, add_article_preview=True)
+        assert len(articles) == 2
+        assert_article_preview_data(
+            articles[0],
+            "1",
+            "Article 1",
+            "http://example.com/1",
+            "Preview for article 1",
+        )
+        assert_article_preview_data(
+            articles[1],
+            "2",
+            "Article 2",
+            "http://example.com/2",
+            "Preview for article 2",
+        )
+
+
+def test_get_articles_with_preview_missing(client, session):
+    """Test that a missing article preview is handled gracefully."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://www.instapaper.com/u/1",
+            text=get_mock_html(page_num=1, with_preview=True, missing_preview=True),
+        )
+        articles, _ = client.get_articles(page=1, add_article_preview=True)
+        assert len(articles) == 2
+        assert_article_preview_data(
+            articles[0],
+            "1",
+            "Article 1",
+            "http://example.com/1",
+            "Preview for article 1",
+        )
+        assert_article_preview_data(
+            articles[1], "2", "Article 2", "http://example.com/2", ""
+        )
+
+
+def test_get_articles_without_preview(client, session):
+    """Test that the article preview is not scraped when not requested."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://www.instapaper.com/u/1",
+            text=get_mock_html(page_num=1, with_preview=True),
+        )
+        articles, _ = client.get_articles(page=1, add_article_preview=False)
+        assert len(articles) == 2
+        assert "article_preview" not in articles[0]
+        assert "article_preview" not in articles[1]

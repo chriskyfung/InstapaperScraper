@@ -15,3 +15,4 @@ CONFIG_DIR = Path.home() / ".config" / APP_NAME
 KEY_ID = "id"
 KEY_TITLE = "title"
 KEY_URL = "url"
+KEY_ARTICLE_PREVIEW = "article_preview"

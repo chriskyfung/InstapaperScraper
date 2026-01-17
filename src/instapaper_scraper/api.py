@@ -34,6 +34,7 @@ class InstapaperClient:
     PAGINATE_OLDER_CLASS = "paginate_older"
     ARTICLE_TITLE_CLASS = "article_title"
     TITLE_META_CLASS = "title_meta"
+    ARTICLE_PREVIEW_CLASS = "article_preview"
 
     # URL paths
     URL_PATH_USER = "/u/"
@@ -102,12 +103,14 @@ class InstapaperClient:
         self,
         page: int = DEFAULT_PAGE_START,
         folder_info: Optional[Dict[str, str]] = None,
+        add_article_preview: bool = False,
     ) -> Tuple[List[Dict[str, str]], bool]:
         """
         Fetches a single page of articles and determines if there are more pages.
         Args:
             page: The page number to fetch.
             folder_info: A dictionary containing 'id' and 'slug' of the folder to fetch articles from.
+            add_article_preview: Whether to include the article preview.
         Returns:
             A tuple containing:
             - A list of article data (dictionaries with id, title, url).
@@ -147,7 +150,9 @@ class InstapaperClient:
                             article_id_val.replace(self.ARTICLE_ID_PREFIX, "")
                         )
 
-                data = self._parse_article_data(soup, article_ids, page)
+                data = self._parse_article_data(
+                    soup, article_ids, page, add_article_preview
+                )
                 has_more = soup.find(class_=self.PAGINATE_OLDER_CLASS) is not None
 
                 return data, has_more
@@ -185,13 +190,17 @@ class InstapaperClient:
         raise Exception(self.MSG_SCRAPING_FAILED_UNKNOWN)
 
     def get_all_articles(
-        self, limit: Optional[int] = None, folder_info: Optional[Dict[str, str]] = None
+        self,
+        limit: Optional[int] = None,
+        folder_info: Optional[Dict[str, str]] = None,
+        add_article_preview: bool = False,
     ) -> List[Dict[str, str]]:
         """
         Iterates through pages and fetches articles up to a specified limit.
         Args:
             limit: The maximum number of pages to scrape. If None, scrapes all pages.
             folder_info: A dictionary containing 'id' and 'slug' of the folder to fetch articles from.
+            add_article_preview: Whether to include the article preview.
         """
         all_articles = []
         page = self.DEFAULT_PAGE_START
@@ -202,7 +211,11 @@ class InstapaperClient:
                 break
 
             logging.info(self.MSG_SCRAPING_PAGE.format(page=page))
-            data, has_more = self.get_articles(page=page, folder_info=folder_info)
+            data, has_more = self.get_articles(
+                page=page,
+                folder_info=folder_info,
+                add_article_preview=add_article_preview,
+            )
             if data:
                 all_articles.extend(data)
             page += 1
@@ -217,7 +230,11 @@ class InstapaperClient:
         return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_USER}{page}"
 
     def _parse_article_data(
-        self, soup: BeautifulSoup, article_ids: List[str], page: int
+        self,
+        soup: BeautifulSoup,
+        article_ids: List[str],
+        page: int,
+        add_article_preview: bool = False,
     ) -> List[Dict[str, Any]]:
         """Parses the raw HTML to extract structured data for each article."""
         data = []
@@ -249,7 +266,19 @@ class InstapaperClient:
                     raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
                 link = link_element["href"]
 
-                data.append({KEY_ID: article_id, KEY_TITLE: title, KEY_URL: link})
+                article_data = {KEY_ID: article_id, KEY_TITLE: title, KEY_URL: link}
+
+                if add_article_preview:
+                    preview_element = article_element.find(
+                        class_=self.ARTICLE_PREVIEW_CLASS
+                    )
+                    article_data["article_preview"] = (
+                        preview_element.get_text().strip()
+                        if isinstance(preview_element, Tag)
+                        else ""
+                    )
+
+                data.append(article_data)
             except AttributeError as e:
                 logging.warning(
                     self.MSG_PARSE_ARTICLE_WARNING.format(

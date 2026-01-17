@@ -107,6 +107,11 @@ def main() -> None:
         help="Add an 'instapaper_url' column to the output with the full Instapaper read URL.",
     )
     parser.add_argument(
+        "--add-article-preview",
+        action="store_true",
+        help="Add an 'article_preview' column to the output with the article preview text.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -196,7 +201,9 @@ def main() -> None:
     try:
         folder_info = selected_folder if selected_folder else None
         all_articles = client.get_all_articles(
-            limit=args.limit, folder_info=folder_info
+            limit=args.limit,
+            folder_info=folder_info,
+            add_article_preview=args.add_article_preview,
         )
     except ScraperStructureChanged as e:
         logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
@@ -215,6 +222,7 @@ def main() -> None:
             args.format,
             output_filename,
             add_instapaper_url=args.add_instapaper_url,
+            add_article_preview=args.add_article_preview,
         )
         logging.info("Articles scraped and saved successfully.")
     except Exception as e:

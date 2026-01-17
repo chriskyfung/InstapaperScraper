@@ -49,10 +49,14 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch, capl
     mock_auth.assert_called_once()
     mock_auth.return_value.login.assert_called_once()
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
     mock_save.assert_called_once_with(
-        mock_articles, "csv", "output/bookmarks.csv", add_instapaper_url=False
+        mock_articles,
+        "csv",
+        "output/bookmarks.csv",
+        add_instapaper_url=False,
+        add_article_preview=False,
     )
     assert "No configuration file found at any default location." in caplog.text
     assert "Articles scraped and saved successfully." in caplog.text
@@ -93,7 +97,11 @@ def test_cli_custom_format(
 
     expected_filename = f"output/bookmarks.{expected_ext}"
     mock_save.assert_called_once_with(
-        [], format, expected_filename, add_instapaper_url=False
+        [],
+        format,
+        expected_filename,
+        add_instapaper_url=False,
+        add_article_preview=False,
     )
 
 
@@ -110,7 +118,9 @@ def test_cli_custom_output_file(mock_auth, mock_client, mock_save, monkeypatch):
         with patch("builtins.input", return_value="0"):
             cli.main()
 
-    mock_save.assert_called_once_with([], "json", custom_file, add_instapaper_url=False)
+    mock_save.assert_called_once_with(
+        [], "json", custom_file, add_instapaper_url=False, add_article_preview=False
+    )
 
 
 def test_cli_custom_auth_files(mock_auth, mock_client, mock_save, monkeypatch):
@@ -171,7 +181,11 @@ def test_cli_with_add_instapaper_url(mock_auth, mock_client, mock_save, monkeypa
             cli.main()
 
     mock_save.assert_called_once_with(
-        [], "csv", "output/bookmarks.csv", add_instapaper_url=True
+        [],
+        "csv",
+        "output/bookmarks.csv",
+        add_instapaper_url=True,
+        add_article_preview=False,
     )
 
 
@@ -186,7 +200,7 @@ def test_cli_with_limit(mock_auth, mock_client, mock_save, monkeypatch):
             cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=5, folder_info=None
+        limit=5, folder_info=None, add_article_preview=False
     )
 
 
@@ -240,7 +254,7 @@ def test_cli_with_config_interactive_selection(
             cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=folder_config
+        limit=None, folder_info=folder_config, add_article_preview=False
     )
 
 
@@ -258,7 +272,7 @@ def test_cli_with_config_folder_argument(
         cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=folder_config
+        limit=None, folder_info=folder_config, add_article_preview=False
     )
 
 
@@ -284,7 +298,11 @@ def test_cli_with_config_folder_output_preset(
         cli.main()
 
     mock_save.assert_called_once_with(
-        [], "csv", "ml-articles.json", add_instapaper_url=False
+        [],
+        "csv",
+        "ml-articles.json",
+        add_instapaper_url=False,
+        add_article_preview=False,
     )
 
 
@@ -301,9 +319,11 @@ def test_cli_folder_none_with_config_output(
         cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
-    mock_save.assert_called_once_with([], "csv", "home.csv", add_instapaper_url=False)
+    mock_save.assert_called_once_with(
+        [], "csv", "home.csv", add_instapaper_url=False, add_article_preview=False
+    )
 
 
 def test_cli_no_folder_with_config_output(
@@ -319,9 +339,11 @@ def test_cli_no_folder_with_config_output(
         cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
-    mock_save.assert_called_once_with([], "csv", "home.csv", add_instapaper_url=False)
+    mock_save.assert_called_once_with(
+        [], "csv", "home.csv", add_instapaper_url=False, add_article_preview=False
+    )
 
 
 def test_cli_folder_argument_no_config_exits(
@@ -447,7 +469,7 @@ def test_cli_folder_id_not_in_config(mock_auth, mock_client, mock_save, monkeypa
         cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info={"id": "12345"}
+        limit=None, folder_info={"id": "12345"}, add_article_preview=False
     )
 
 
@@ -464,7 +486,7 @@ def test_cli_interactive_invalid_input(mock_auth, mock_client, mock_save, monkey
 
     # Should default to non-folder mode
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
 
 
@@ -481,7 +503,7 @@ def test_cli_interactive_out_of_range(mock_auth, mock_client, mock_save, monkeyp
 
     # Should default to non-folder mode
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
 
 
@@ -499,10 +521,14 @@ def test_cli_interactive_empty_folder_list(
         cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
     mock_save.assert_called_once_with(
-        [], "csv", "output/bookmarks.csv", add_instapaper_url=False
+        [],
+        "csv",
+        "output/bookmarks.csv",
+        add_instapaper_url=False,
+        add_article_preview=False,
     )
 
 
@@ -521,10 +547,33 @@ def test_cli_interactive_select_no_folder(
             cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
-        limit=None, folder_info=None
+        limit=None, folder_info=None, add_article_preview=False
     )
     mock_save.assert_called_once_with(
-        [], "csv", "output/bookmarks.csv", add_instapaper_url=False
+        [],
+        "csv",
+        "output/bookmarks.csv",
+        add_instapaper_url=False,
+        add_article_preview=False,
+    )
+
+
+def test_cli_with_add_article_preview(mock_auth, mock_client, mock_save, monkeypatch):
+    """Test that the --add-article-preview argument is passed to the save function."""
+    mock_auth.return_value.login.return_value = True
+    mock_client.return_value.get_all_articles.return_value = []
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--add-article-preview"])
+
+    with patch("instapaper_scraper.cli.load_config", return_value={}):
+        with patch("builtins.input", return_value="0"):
+            cli.main()
+
+    mock_save.assert_called_once_with(
+        [],
+        "csv",
+        "output/bookmarks.csv",
+        add_instapaper_url=False,
+        add_article_preview=True,
     )
 
 

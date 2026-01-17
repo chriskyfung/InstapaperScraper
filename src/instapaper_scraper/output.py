@@ -2,7 +2,13 @@ import os
 import logging
 from typing import List, Dict, Any, TYPE_CHECKING
 
-from .constants import INSTAPAPER_READ_URL, KEY_ID, KEY_TITLE, KEY_URL
+from .constants import (
+    INSTAPAPER_READ_URL,
+    KEY_ID,
+    KEY_TITLE,
+    KEY_URL,
+    KEY_ARTICLE_PREVIEW,
+)
 
 # Constants for file operations
 JSON_INDENT = 4
@@ -24,7 +30,9 @@ if TYPE_CHECKING:
     __all__ = ["sqlite3"]
 
 
-def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
+def get_sqlite_create_table_sql(
+    add_instapaper_url: bool = False, add_article_preview: bool = False
+) -> str:
     """Returns the SQL statement to create the articles table."""
     columns = [
         f"{KEY_ID} TEXT PRIMARY KEY",
@@ -42,10 +50,15 @@ def get_sqlite_create_table_sql(add_instapaper_url: bool = False) -> str:
         else:
             columns.append(f"{SQLITE_INSTAPAPER_URL_COL} TEXT")
 
+    if add_article_preview:
+        columns.append(f"{KEY_ARTICLE_PREVIEW} TEXT")
+
     return f"CREATE TABLE IF NOT EXISTS {SQLITE_TABLE_NAME} ({', '.join(columns)})"
 
 
-def get_sqlite_insert_sql(add_instapaper_url_manually: bool = False) -> str:
+def get_sqlite_insert_sql(
+    add_instapaper_url_manually: bool = False, add_article_preview: bool = False
+) -> str:
     """Returns the SQL statement to insert an article."""
     cols = [KEY_ID, KEY_TITLE, KEY_URL]
     placeholders = [f":{KEY_ID}", f":{KEY_TITLE}", f":{KEY_URL}"]
@@ -54,11 +67,18 @@ def get_sqlite_insert_sql(add_instapaper_url_manually: bool = False) -> str:
         cols.append(SQLITE_INSTAPAPER_URL_COL)
         placeholders.append(f":{SQLITE_INSTAPAPER_URL_COL}")
 
+    if add_article_preview:
+        cols.append(KEY_ARTICLE_PREVIEW)
+        placeholders.append(f":{KEY_ARTICLE_PREVIEW}")
+
     return f"INSERT OR REPLACE INTO {SQLITE_TABLE_NAME} ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"
 
 
 def save_to_csv(
-    data: List[Dict[str, Any]], filename: str, add_instapaper_url: bool = False
+    data: List[Dict[str, Any]],
+    filename: str,
+    add_instapaper_url: bool = False,
+    add_article_preview: bool = False,
 ) -> None:
     """Saves a list of articles to a CSV file."""
     import csv
@@ -69,6 +89,8 @@ def save_to_csv(
         if add_instapaper_url:
             # Insert instapaper_url after the id column
             fieldnames.insert(1, SQLITE_INSTAPAPER_URL_COL)
+        if add_article_preview:
+            fieldnames.append(KEY_ARTICLE_PREVIEW)
 
         writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
         writer.writeheader()
@@ -77,7 +99,11 @@ def save_to_csv(
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=filename))
 
 
-def save_to_json(data: List[Dict[str, Any]], filename: str) -> None:
+def save_to_json(
+    data: List[Dict[str, Any]],
+    filename: str,
+    add_article_preview: bool = False,
+) -> None:
     """Saves a list of articles to a JSON file."""
     import json
 
@@ -88,7 +114,10 @@ def save_to_json(data: List[Dict[str, Any]], filename: str) -> None:
 
 
 def save_to_sqlite(
-    data: List[Dict[str, Any]], db_name: str, add_instapaper_url: bool = False
+    data: List[Dict[str, Any]],
+    db_name: str,
+    add_instapaper_url: bool = False,
+    add_article_preview: bool = False,
 ) -> None:
     """Saves a list of articles to a SQLite database."""
     import sqlite3
@@ -96,7 +125,7 @@ def save_to_sqlite(
     os.makedirs(os.path.dirname(db_name), exist_ok=True)
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
-    cursor.execute(get_sqlite_create_table_sql(add_instapaper_url))
+    cursor.execute(get_sqlite_create_table_sql(add_instapaper_url, add_article_preview))
 
     # For older SQLite versions, we need to manually add the URL
     manual_insert_required = add_instapaper_url and sqlite3.sqlite_version_info < (
@@ -116,7 +145,8 @@ def save_to_sqlite(
         data_to_insert = data
 
     insert_sql = get_sqlite_insert_sql(
-        add_instapaper_url_manually=manual_insert_required
+        add_instapaper_url_manually=manual_insert_required,
+        add_article_preview=add_article_preview,
     )
     cursor.executemany(insert_sql, data_to_insert)
 
@@ -143,6 +173,7 @@ def save_articles(
     format: str,
     filename: str,
     add_instapaper_url: bool = False,
+    add_article_preview: bool = False,
 ) -> None:
     """
     Dispatches to the correct save function based on the format.
@@ -164,10 +195,20 @@ def save_articles(
         ]
 
     if format == "csv":
-        save_to_csv(data, filename=filename, add_instapaper_url=add_instapaper_url)
+        save_to_csv(
+            data,
+            filename=filename,
+            add_instapaper_url=add_instapaper_url,
+            add_article_preview=add_article_preview,
+        )
     elif format == "json":
-        save_to_json(data, filename=filename)
+        save_to_json(data, filename=filename, add_article_preview=add_article_preview)
     elif format == "sqlite":
-        save_to_sqlite(data, db_name=filename, add_instapaper_url=add_instapaper_url)
+        save_to_sqlite(
+            data,
+            db_name=filename,
+            add_instapaper_url=add_instapaper_url,
+            add_article_preview=add_article_preview,
+        )
     else:
         logging.error(LOG_UNKNOWN_FORMAT.format(format=format))
