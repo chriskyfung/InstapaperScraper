@@ -7,8 +7,8 @@ This project is a Python-based command-line tool named "Instapaper Scraper" desi
 The tool is built with a modular architecture:
 -   **`auth.py`**: Handles secure authentication and session management.
 -   **`api.py`**: Contains the core scraping logic, using `requests` for HTTP calls and `BeautifulSoup` for HTML parsing. It includes robust error handling and retry mechanisms.
--   **`cli.py`**: Provides the command-line interface using `argparse`, orchestrating the authentication, scraping, and output processes. It includes options for selecting output format, specifying folders, and adding a clickable `instapaper_url` for each article.
--   **`output.py`**: Manages the saving of scraped articles to the specified file format. It automatically corrects the output filename extension to match the chosen format (e.g., `.csv`, `.json`, `.db`). The CSV output is RFC 4180 compliant, with all fields quoted. For SQLite output, it uses a generated column for `instapaper_url` on modern SQLite versions (>=3.31.0) and includes a fallback mechanism for older versions to ensure compatibility.
+-   **`cli.py`**: Provides the command-line interface using `argparse`, orchestrating the authentication, scraping, and output processes. It includes options for selecting output format, specifying folders, adding a clickable `instapaper_url` for each article, and including the `article_preview`.
+-   **`output.py`**: Manages the saving of scraped articles to the specified file format. It automatically corrects the output filename extension to match the chosen format (e.g., `.csv`, `.json`, `.db`). The CSV output is RFC 4180 compliant, with all fields quoted. For SQLite output, it uses a generated column for `instapaper_url` on modern SQLite versions (>=3.31.0) and includes a fallback mechanism for older versions to ensure compatibility. It also includes the `article_preview` field in the output when requested.
 
 The project uses `pytest` for testing, `ruff` for linting and formatting, `mypy` for static type checking, and `pre-commit` for automated checks.
 

@@ -139,6 +139,7 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 | `--username <user>` | Your Instapaper account username. |
 | `--password <pass>` | Your Instapaper account password. |
 | `--add-instapaper-url` | Adds a `instapaper_url` column to the output, containing a full, clickable URL for each article. |
+| `--add-article-preview` | Adds an `article_preview` column to the output, containing the article preview text. |
 
 ### 📄 Output Formats
 
@@ -175,15 +176,15 @@ The tool is designed with a modular architecture for reliability and maintainabi
 
 ## 📊 Example Output
 
-### 📄 CSV (`output/bookmarks.csv`) (with --add-instapaper-url)
+### 📄 CSV (`output/bookmarks.csv`) (with --add-instapaper-url and --add-article-preview)
 
 ```csv
-"id","instapaper_url","title","url"
-"999901234","https://www.instapaper.com/read/999901234","Article 1","https://www.example.com/page-1/"
-"999002345","https://www.instapaper.com/read/999002345","Article 2","https://www.example.com/page-2/"
+"id","instapaper_url","title","url","article_preview"
+"999901234","https://www.instapaper.com/read/999901234","Article 1","https://www.example.com/page-1/","This is a preview of article 1."
+"999002345","https://www.instapaper.com/read/999002345","Article 2","https://www.example.com/page-2/","This is a preview of article 2."
 ```
 
-### 📄 JSON (`output/bookmarks.json`) (with --add-instapaper-url)
+### 📄 JSON (`output/bookmarks.json`) (with --add-instapaper-url and --add-article-preview)
 
 ```json
 [
@@ -191,13 +192,15 @@ The tool is designed with a modular architecture for reliability and maintainabi
         "id": "999901234",
         "title": "Article 1",
         "url": "https://www.example.com/page-1/",
-        "instapaper_url": "https://www.instapaper.com/read/999901234"
+        "instapaper_url": "https://www.instapaper.com/read/999901234",
+        "article_preview": "This is a preview of article 1."
     },
     {
         "id": "999002345",
         "title": "Article 2",
         "url": "https://www.example.com/page-2/",
-        "instapaper_url": "https://www.instapaper.com/read/999002345"
+        "instapaper_url": "https://www.instapaper.com/read/999002345",
+        "article_preview": "This is a preview of article 2."
     }
 ]
 ```

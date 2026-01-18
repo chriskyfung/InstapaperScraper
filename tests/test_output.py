@@ -105,14 +105,17 @@ def test_get_sqlite_create_table_sql_with_url_old_sqlite(mock_sqlite3):
     configure_mock, _ = mock_sqlite3
     configure_mock((3, 30, 0))
     sql = get_sqlite_create_table_sql(add_instapaper_url=True)
-    assert "instapaper_url TEXT" in sql
-    assert "GENERATED" not in sql
+    expected_sql = "CREATE TABLE IF NOT EXISTS articles (id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, instapaper_url TEXT)"
+    assert sql == expected_sql
 
 
 def test_get_sqlite_insert_sql_without_manual_url():
     """Test INSERT SQL without manual instapaper_url."""
     sql = get_sqlite_insert_sql(add_instapaper_url_manually=False)
-    assert "instapaper_url" not in sql
+    expected_sql = (
+        "INSERT OR REPLACE INTO articles (id, title, url) VALUES (:id, :title, :url)"
+    )
+    assert sql == expected_sql
 
 
 def test_get_sqlite_insert_sql_with_manual_url():
@@ -205,6 +208,37 @@ def test_save_to_sqlite(sample_articles, output_dir):
     # Verify the instapaper_url column does not exist
     with pytest.raises(sqlite3.OperationalError):
         cursor.execute("SELECT instapaper_url FROM articles")
+
+    conn.close()
+
+
+def test_save_to_sqlite_with_instapaper_url(sample_articles, output_dir):
+    """Test saving articles to a SQLite database with the instapaper_url."""
+    db_file = output_dir / "bookmarks_with_url.db"
+    articles = sample_articles()
+    save_to_sqlite(articles, str(db_file), add_instapaper_url=True)
+
+    assert db_file.exists()
+    conn = sqlite3.connect(db_file)
+    # Use a row factory to access columns by name
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, title, url, instapaper_url FROM articles ORDER BY id ASC"
+    )
+    rows = cursor.fetchall()
+
+    assert len(rows) == 3
+    assert rows[0]["id"] == "1"
+    assert rows[0]["title"] == "Article One"
+    assert rows[0]["url"] == "http://example.com/1"
+    assert rows[0]["instapaper_url"] == f"{INSTAPAPER_READ_URL}1"
+
+    assert rows[1]["id"] == "2"
+    assert rows[1]["instapaper_url"] == f"{INSTAPAPER_READ_URL}2"
+
+    assert rows[2]["id"] == "3"
+    assert rows[2]["instapaper_url"] == f"{INSTAPAPER_READ_URL}3"
 
     conn.close()
 
