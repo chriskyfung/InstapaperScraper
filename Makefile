@@ -6,56 +6,47 @@
 # HELP
 # ====================================================================================
 
-help:
-	@echo "Commands:"
-	@echo "  install        : Install dependencies for development."
-	@echo "  lint           : Check code for linting errors with ruff."
-	@echo "  format         : Format code with ruff."
-	@echo "  type-check     : Run static type checking with mypy."
-	@echo "  test           : Run tests with pytest."
-	@echo "  test-cov       : Run tests with pytest and generate a coverage report."
-	@echo "  check          : Run all checks (lint, type-check, test)."
-	@echo "  license-check  : Run license checks."
-	@echo "  build          : Build the project distribution packages."
-	@echo "  publish        : Publish the packages to PyPI. Use with caution."
-	@echo "  clean          : Remove temporary build and cache files."
-	@echo "  all            : Run all checks."
+help: ## Show this help message.
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Available targets:"
+	@awk 'BEGIN {FS = ":.*?## "}; /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 
 # ====================================================================================
 # DEVELOPMENT
 # ====================================================================================
 
-all: check
+all: check ## Run all checks.
 
-install:
+install: ## Install dependencies for development.
 	@echo "--> Installing development dependencies..."
 	@pip install -e .[dev]
 
-lint:
+lint: ## Check code for linting errors with ruff.
 	@echo "--> Linting code with ruff..."
 	@ruff check .
 
-format:
+format: ## Format code with ruff.
 	@echo "--> Formatting code with ruff..."
 	@ruff format .
 
-type-check:
+type-check: ## Run static type checking with mypy.
 	@echo "--> Running static type checking with mypy..."
 	@mypy src
 
-test:
+test: ## Run tests with pytest.
 	@echo "--> Running tests with pytest..."
 	@pytest
 
-test-cov:
+test-cov: ## Run tests with pytest and generate a coverage report.
 	@echo "--> Running tests with coverage..."
 	@pytest --cov=src/instapaper_scraper --cov-report=term-missing
 
-check: lint type-check test
+check: lint type-check test ## Run all checks (lint, type-check, test).
 	@echo "--> All checks passed."
 
-license-check:
+license-check: ## Run license checks.
 	@echo "--> Checking licenses..."
 	@licensecheck --zero
 
@@ -63,11 +54,11 @@ license-check:
 # BUILD & PUBLISH
 # ====================================================================================
 
-build:
+build: ## Build the project distribution packages.
 	@echo "--> Building distribution packages..."
 	@python -m build
 
-publish: build
+publish: build ## Publish the packages to PyPI. Use with caution.
 	@echo "--> Publishing to PyPI..."
 	@echo "WARNING: This will upload packages to PyPI. Press Ctrl+C to cancel."
 	@sleep 5
@@ -77,7 +68,8 @@ publish: build
 # CLEANUP
 # ====================================================================================
 
-clean:
+clean: ## Remove temporary build and cache files.
 	@echo "--> Cleaning up temporary files..."
-	@rm -rf .ruff_cache .pytest_cache .mypy_cache build dist src/instapaper_scraper.egg-info __pycache__ src/instapaper_scraper/__pycache__ tests/__pycache__
+	@rm -rf .ruff_cache .pytest_cache .mypy_cache build dist *.egg-info
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@echo "--> Cleanup complete."
