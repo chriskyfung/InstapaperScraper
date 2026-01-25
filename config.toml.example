@@ -8,6 +8,12 @@ output_filename = "home-articles.csv"
 # INSTAPAPER_USERNAME="your-username"
 # INSTAPAPER_PASSWORD="your-password"
 
+# Optional fields to include in the output.
+# These can be overridden by command-line flags.
+[fields]
+read_url = false
+article_preview = false
+
 [[folders]]
 key = "ml"
 id = "1234567"

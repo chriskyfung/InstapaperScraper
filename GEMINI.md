@@ -7,7 +7,7 @@ This project is a Python-based command-line tool named "Instapaper Scraper" desi
 The tool is built with a modular architecture:
 -   **`auth.py`**: Handles secure authentication and session management.
 -   **`api.py`**: Contains the core scraping logic, using `requests` for HTTP calls and `BeautifulSoup` for HTML parsing. It includes robust error handling and retry mechanisms.
--   **`cli.py`**: Provides the command-line interface using `argparse`, orchestrating the authentication, scraping, and output processes. It includes options for selecting output format, specifying folders, adding a clickable `instapaper_url` for each article, and including the `article_preview`.
+-   **`cli.py`**: Provides the command-line interface using `argparse`, orchestrating the authentication, scraping, and output processes. It includes options for selecting output format and specifying folders. It allows enabling `instapaper_url` and `article_preview` fields via command-line flags (e.g., `--read-url`, `--article-preview`) or from a `config.toml` file, with command-line arguments taking precedence. It maintains backward compatibility with older flags (`--add-instapaper-url`, `--add-article-preview`).
 -   **`output.py`**: Manages the saving of scraped articles to the specified file format. It automatically corrects the output filename extension to match the chosen format (e.g., `.csv`, `.json`, `.db`). The CSV output is RFC 4180 compliant, with all fields quoted. For SQLite output, it uses a generated column for `instapaper_url` on modern SQLite versions (>=3.31.0) and includes a fallback mechanism for older versions to ensure compatibility. It also includes the `article_preview` field in the output when requested.
 
 The project uses `pytest` for testing, `ruff` for linting and formatting, `mypy` for static type checking, and `pre-commit` for automated checks.
@@ -75,7 +75,7 @@ pytest --cov=src/instapaper_scraper --cov-report=term-missing
     ```
 -   **Pre-Commit Hooks**: This project uses `pre-commit` to run checks before each commit. The hooks are defined in `.pre-commit-config.yaml` and include `ruff` and `mypy`.
 -   **Entry Point**: The main entry point for the CLI tool is the `main` function in `src/instapaper_scraper/cli.py`.
--   **Configuration**: The tool can be configured via a `config.toml` file for specifying folders and output filenames.
+-   **Configuration**: The tool can be configured via a `config.toml` file for specifying folders, output filenames, and default fields to include (e.g., `read_url`, `article_preview`).
 -   **Constants Management**: Constants are managed using a hybrid approach:
     -   Shared constants used across multiple modules are defined as module-level variables in `src/instapaper_scraper/constants.py`.
     -   Local constants specific to a class are defined as class attributes within that class (e.g., `InstapaperClient`, `InstapaperAuthenticator`).
