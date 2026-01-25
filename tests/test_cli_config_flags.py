@@ -32,57 +32,323 @@ def mock_save(monkeypatch):
     return mock
 
 
-# --- Test suite for --read-url and its aliases ---
+# --- Test suite for boolean flags with precedence and backward compatibility ---
 
 
 @pytest.mark.parametrize(
-    "config_value, cli_args, expected_final_value",
+    "flag_details, config_value, cli_args, expected_final_value",
     [
-        # --- Precedence Tests ---
-        (True, [], True),
-        (False, [], False),
-        (False, ["--read-url"], True),
-        (True, ["--no-read-url"], False),
-        (None, [], False),
-        (None, ["--read-url"], True),
-        (None, ["--no-read-url"], False),
-        # --- Backward Compatibility Tests ---
-        (False, ["--add-instapaper-url"], True),
-        (True, ["--no-add-instapaper-url"], False),
-        (None, ["--add-instapaper-url"], True),
+        # --read-url cases
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            True,
+            [],
+            True,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            False,
+            [],
+            False,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            False,
+            ["--read-url"],
+            True,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            True,
+            ["--no-read-url"],
+            False,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            None,
+            [],
+            False,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            None,
+            ["--read-url"],
+            True,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            None,
+            ["--no-read-url"],
+            False,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            False,
+            ["--add-instapaper-url"],
+            True,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            True,
+            ["--no-add-instapaper-url"],
+            False,
+        ),
+        (
+            (
+                "read_url",
+                "add_instapaper_url",
+                "--read-url",
+                "--no-read-url",
+                "--add-instapaper-url",
+                "--no-add-instapaper-url",
+            ),
+            None,
+            ["--add-instapaper-url"],
+            True,
+        ),
+        # --article-preview cases
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            True,
+            [],
+            True,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            False,
+            [],
+            False,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            False,
+            ["--article-preview"],
+            True,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            True,
+            ["--no-article-preview"],
+            False,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            None,
+            [],
+            False,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            None,
+            ["--article-preview"],
+            True,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            None,
+            ["--no-article-preview"],
+            False,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            False,
+            ["--add-article-preview"],
+            True,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            True,
+            ["--no-add-article-preview"],
+            False,
+        ),
+        (
+            (
+                "article_preview",
+                "add_article_preview",
+                "--article-preview",
+                "--no-article-preview",
+                "--add-article-preview",
+                "--no-add-article-preview",
+            ),
+            None,
+            ["--add-article-preview"],
+            True,
+        ),
     ],
     ids=[
-        "config_true_no_cli",
-        "config_false_no_cli",
-        "config_false_cli_add",
-        "config_true_cli_no_add",
-        "no_config_no_cli",
-        "no_config_cli_add",
-        "no_config_cli_no_add",
-        "bwc_config_false_cli_add",
-        "bwc_config_true_cli_no_add",
-        "bwc_no_config_cli_add",
+        # read_url ids
+        "read_url_config_true_no_cli",
+        "read_url_config_false_no_cli",
+        "read_url_config_false_cli_add",
+        "read_url_config_true_cli_no_add",
+        "read_url_no_config_no_cli",
+        "read_url_no_config_cli_add",
+        "read_url_no_config_cli_no_add",
+        "read_url_bwc_config_false_cli_add",
+        "read_url_bwc_config_true_cli_no_add",
+        "read_url_bwc_no_config_cli_add",
+        # article_preview ids
+        "article_preview_config_true_no_cli",
+        "article_preview_config_false_no_cli",
+        "article_preview_config_false_cli_add",
+        "article_preview_config_true_cli_no_add",
+        "article_preview_no_config_no_cli",
+        "article_preview_no_config_cli_add",
+        "article_preview_no_config_cli_no_add",
+        "article_preview_bwc_config_false_cli_add",
+        "article_preview_bwc_config_true_cli_no_add",
+        "article_preview_bwc_no_config_cli_add",
     ],
 )
-def test_read_url_precedence_and_backward_compatibility(
+def test_flag_precedence_and_backward_compatibility(
     mock_auth,
     mock_client,
     mock_save,
     monkeypatch,
+    flag_details,
     config_value,
     cli_args,
     expected_final_value,
 ):
     """
-    Tests the precedence and backward compatibility for the --read-url flag and its aliases.
+    Tests the precedence and backward compatibility for boolean flags.
     Precedence order: CLI Flag > Config File > Default (False).
+    Supports both modern and backward-compatible flag names.
     """
+    config_key, dest_key, pos_flag, neg_flag, bwc_pos_flag, bwc_neg_flag = flag_details
+
     argv = ["instapaper-scraper"] + cli_args
     monkeypatch.setattr("sys.argv", argv)
 
     config = None
     if config_value is not None:
-        config = {"fields": {"read_url": config_value}}  # Updated key name here
+        config = {"fields": {config_key: config_value}}
 
     with patch("instapaper_scraper.cli.load_config", return_value=config):
         with patch("builtins.input", return_value="0"):
@@ -90,67 +356,12 @@ def test_read_url_precedence_and_backward_compatibility(
 
     mock_save.assert_called_once()
     saved_kwargs = mock_save.call_args.kwargs
-    assert saved_kwargs["add_instapaper_url"] == expected_final_value
-    assert saved_kwargs["add_article_preview"] is False
+    assert saved_kwargs[dest_key] == expected_final_value
 
-
-# --- Test suite for --article-preview and its aliases ---
-
-
-@pytest.mark.parametrize(
-    "config_value, cli_args, expected_final_value",
-    [
-        # --- Precedence Tests ---
-        (True, [], True),
-        (False, [], False),
-        (False, ["--article-preview"], True),
-        (True, ["--no-article-preview"], False),
-        (None, [], False),
-        (None, ["--article-preview"], True),
-        (None, ["--no-article-preview"], False),
-        # --- Backward Compatibility Tests ---
-        (False, ["--add-article-preview"], True),
-        (True, ["--no-add-article-preview"], False),
-        (None, ["--add-article-preview"], True),
-    ],
-    ids=[
-        "config_true_no_cli",
-        "config_false_no_cli",
-        "config_false_cli_add",
-        "config_true_cli_no_add",
-        "no_config_no_cli",
-        "no_config_cli_add",
-        "no_config_cli_no_add",
-        "bwc_config_false_cli_add",
-        "bwc_config_true_cli_no_add",
-        "bwc_no_config_cli_add",
-    ],
-)
-def test_article_preview_precedence_and_backward_compatibility(
-    mock_auth,
-    mock_client,
-    mock_save,
-    monkeypatch,
-    config_value,
-    cli_args,
-    expected_final_value,
-):
-    """
-    Tests the precedence and backward compatibility for the --article-preview flag and its aliases.
-    Precedence order: CLI Flag > Config File > Default (False).
-    """
-    argv = ["instapaper-scraper"] + cli_args
-    monkeypatch.setattr("sys.argv", argv)
-
-    config = None
-    if config_value is not None:
-        config = {"fields": {"article_preview": config_value}}  # Updated key name here
-
-    with patch("instapaper_scraper.cli.load_config", return_value=config):
-        with patch("builtins.input", return_value="0"):
-            cli.main()
-
-    mock_save.assert_called_once()
-    saved_kwargs = mock_save.call_args.kwargs
-    assert saved_kwargs["add_article_preview"] == expected_final_value
-    assert saved_kwargs["add_instapaper_url"] is False
+    # Verify the other flag is False
+    other_dest_key = (
+        "add_article_preview"
+        if dest_key == "add_instapaper_url"
+        else "add_instapaper_url"
+    )
+    assert saved_kwargs[other_dest_key] is False
