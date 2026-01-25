@@ -133,15 +133,16 @@ def main() -> None:
     selected_folder = None
 
     # Resolve boolean flags, giving CLI priority over config
-    if args.add_instapaper_url is not None:
-        final_add_instapaper_url = args.add_instapaper_url
-    else:
-        final_add_instapaper_url = fields_config.get("read_url", False)
-
-    if args.add_article_preview is not None:
-        final_add_article_preview = args.add_article_preview
-    else:
-        final_add_article_preview = fields_config.get("article_preview", False)
+    final_add_instapaper_url = (
+        args.add_instapaper_url
+        if args.add_instapaper_url is not None
+        else fields_config.get("read_url", False)
+    )
+    final_add_article_preview = (
+        args.add_article_preview
+        if args.add_article_preview is not None
+        else fields_config.get("article_preview", False)
+    )
 
     if args.folder:
         if args.folder.lower() == "none":
