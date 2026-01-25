@@ -239,7 +239,18 @@ Please read the **[Contribution Guidelines](CONTRIBUTING.md)** before you start.
 
 ## 🧑‍💻 Development & Testing
 
-This project uses `pytest` for testing, `ruff` for code formatting and linting, and `mypy` for static type checking.
+This project uses `pytest` for testing, `ruff` for code formatting and linting, and `mypy` for static type checking. A `Makefile` is provided to simplify common development tasks.
+
+### 🚀 Using the Makefile
+
+The most common commands are:
+-   `make install`: Installs development dependencies.
+-   `make format`: Formats the entire codebase.
+-   `make check`: Runs the linter, type checker, and test suite.
+-   `make test`: Runs the test suite.
+-   `make build`: Builds the distributable packages.
+
+Run `make help` to see all available commands.
 
 ### 🔧 Setup
 
@@ -265,19 +276,21 @@ python -m src.instapaper_scraper.cli
 
 ### ✅ Testing
 
-To run the tests, execute the following command from the project root:
+To run the tests, execute the following command from the project root (or use `make test`):
 
 ```sh
 pytest
 ```
 
-To check test coverage:
+To check test coverage (or use `make test-cov`):
 
 ```sh
 pytest --cov=src/instapaper_scraper --cov-report=term-missing
 ```
 
 ### ✨ Code Quality
+
+You can use the `Makefile` for convenience (e.g., `make format`, `make lint`).
 
 To format the code with `ruff`:
 
@@ -291,12 +304,6 @@ To check for linting errors with `ruff`:
 ruff check .
 ```
 
-To automatically fix linting errors:
-
-```sh
-ruff check . --fix
-```
-
 To run static type checking with `mypy`:
 
 ```sh
@@ -306,7 +313,7 @@ mypy src
 To run license checks:
 
 ```sh
-licensecheck --show-only-failing
+licensecheck --zero
 ```
 
 

@@ -48,7 +48,10 @@ Unsure where to start? Look for issues tagged with `good first issue` or `help w
 2.  **Set up your development environment.** Instructions are in the `README.md` under the "Development & Testing" section. Don't forget to run `pre-commit install` after installing dev dependencies.
 3.  **Make your changes.** Ensure you add or update tests as appropriate.
 4.  **Ensure the test suite passes** by running `pytest`.
-5.  **Format your code** with `ruff format .`, check for linting issues with `ruff check .`, run static type checks with `mypy src`, and verify license compliance with `licensecheck --show-only-failing`.
+5.  **Format your code and run checks.** You can use the provided `Makefile` to simplify this process:
+    -   Run `make format` to format the code.
+    -   Run `make check` to run the linter, type checker, and tests.
+    -   Run `make license-check` to verify license compliance.
 6.  **Commit your changes** with a clear and concise commit message. Pre-commit hooks will automatically run `ruff` and `mypy`.
 7.  **Push your branch** to your fork and submit a pull request to the main repository.
 
