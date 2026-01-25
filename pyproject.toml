@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "instapaper-scraper"
-version = "1.2.0"
+version = "1.2.0rc1"
 description = "A tool to scrape articles from Instapaper."
 readme = "README.md"
 requires-python = ">=3.9"
