@@ -102,14 +102,18 @@ def main() -> None:
     parser.add_argument("--username", help="Instapaper username.")
     parser.add_argument("--password", help="Instapaper password.")
     parser.add_argument(
-        "--add-instapaper-url",
-        action="store_true",
-        help="Add an 'instapaper_url' column to the output with the full Instapaper read URL.",
+        "--read-url",  # New, preferred flag
+        "--add-instapaper-url",  # Old, for backward compatibility
+        dest="add_instapaper_url",
+        action=argparse.BooleanOptionalAction,
+        help="Include the Instapaper read URL. Overrides config.",
     )
     parser.add_argument(
-        "--add-article-preview",
-        action="store_true",
-        help="Add an 'article_preview' column to the output with the article preview text.",
+        "--article-preview",  # New, preferred flag
+        "--add-article-preview",  # Old, for backward compatibility
+        dest="add_article_preview",
+        action=argparse.BooleanOptionalAction,
+        help="Include the article preview text. Overrides config.",
     )
     parser.add_argument(
         "--limit",
@@ -125,7 +129,19 @@ def main() -> None:
 
     config = load_config(args.config_path)
     folders = config.get("folders", []) if config else []
+    fields_config = config.get("fields", {}) if config else {}
     selected_folder = None
+
+    # Resolve boolean flags, giving CLI priority over config
+    if args.add_instapaper_url is not None:
+        final_add_instapaper_url = args.add_instapaper_url
+    else:
+        final_add_instapaper_url = fields_config.get("read_url", False)
+
+    if args.add_article_preview is not None:
+        final_add_article_preview = args.add_article_preview
+    else:
+        final_add_article_preview = fields_config.get("article_preview", False)
 
     if args.folder:
         if args.folder.lower() == "none":
@@ -203,7 +219,7 @@ def main() -> None:
         all_articles = client.get_all_articles(
             limit=args.limit,
             folder_info=folder_info,
-            add_article_preview=args.add_article_preview,
+            add_article_preview=final_add_article_preview,
         )
     except ScraperStructureChanged as e:
         logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
@@ -221,8 +237,8 @@ def main() -> None:
             all_articles,
             args.format,
             output_filename,
-            add_instapaper_url=args.add_instapaper_url,
-            add_article_preview=args.add_article_preview,
+            add_instapaper_url=final_add_instapaper_url,
+            add_article_preview=final_add_article_preview,
         )
         logging.info("Articles scraped and saved successfully.")
     except Exception as e:

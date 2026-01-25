@@ -93,9 +93,9 @@ The script authenticates using one of the following methods, in order of priorit
 
 > **Note on Security:** Your session file (`.instapaper_session`) and the encryption key (`.session_key`) are stored with secure permissions (read/write for the owner only) to protect your credentials.
 
-### 📁 Folder Configuration
+### 📁 Folder and Field Configuration
 
-You can define and quickly access your Instapaper folders using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
+You can define and quickly access your Instapaper folders and set default output fields using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
 
 1. The path specified by the `--config-path` argument.
 2. `config.toml` in the current working directory.
@@ -106,6 +106,12 @@ Here is an example of `config.toml`:
 ```toml
 # Default output filename for non-folder mode
 output_filename = "home-articles.csv"
+
+# Optional fields to include in the output.
+# These can be overridden by command-line flags.
+[fields]
+read_url = false
+article_preview = false
 
 [[folders]]
 key = "ml"
@@ -121,10 +127,14 @@ output_filename = "python-articles.db"
 ```
 
 - **output_filename (top-level)**: The default output filename to use when not in folder mode.
-- **key**: A short alias for the folder.
-- **id**: The folder ID from the Instapaper URL.
-- **slug**: The human-readable part of the folder URL.
-- **output_filename (folder-specific)**: A preset output filename for scraped articles from this specific folder.
+- **[fields]**: A section to control which optional data fields are included in the output.
+    -   `read_url`: Set to `true` to include the Instapaper read URL for each article.
+    -   `article_preview`: Set to `true` to include the article's text preview.
+- **[[folders]]**: Each `[[folders]]` block defines a specific folder.
+    -   **key**: A short alias for the folder.
+    -   **id**: The folder ID from the Instapaper URL.
+    -   **slug**: The human-readable part of the folder URL.
+    -   **output_filename (folder-specific)**: A preset output filename for scraped articles from this specific folder.
 
 When a `config.toml` file is present and no `--folder` argument is provided, the scraper will prompt you to select a folder. You can also specify a folder directly using the `--folder` argument with its key, ID, or slug. Use `--folder=none` to explicitly disable folder mode and scrape all articles.
 
@@ -138,8 +148,8 @@ When a `config.toml` file is present and no `--folder` argument is provided, the
 | `--output <filename>` | Specify a custom output filename. The file extension will be automatically corrected to match the selected format. |
 | `--username <user>` | Your Instapaper account username. |
 | `--password <pass>` | Your Instapaper account password. |
-| `--add-instapaper-url` | Adds a `instapaper_url` column to the output, containing a full, clickable URL for each article. |
-| `--add-article-preview` | Adds an `article_preview` column to the output, containing the article preview text. |
+| `--[no-]read-url` | Includes the Instapaper read URL. (Old flag `--add-instapaper-url` is deprecated but supported). Can be set in `config.toml`. Overrides config. |
+| `--[no-]article-preview` | Includes the article preview text. (Old flag `--add-article-preview` is deprecated but supported). Can be set in `config.toml`. Overrides config. |
 
 ### 📄 Output Formats
 
@@ -157,10 +167,10 @@ When using `--output <filename>`, the file extension is automatically corrected 
 
 The output data includes a unique `id` for each article. You can use this ID to construct a URL to the article's reader view: `https://www.instapaper.com/read/<article_id>`.
 
-For convenience, you can use the `--add-instapaper-url` flag to have the script include a full, clickable URL in the output.
+For convenience, you can use the `--read-url` flag to have the script include a full, clickable URL in the output.
 
 ```sh
-instapaper-scraper --add-instapaper-url
+instapaper-scraper --read-url
 ```
 
 This adds a `instapaper_url` field to each article in the JSON output and a `instapaper_url` column in the CSV and SQLite outputs. The original `id` field is preserved.

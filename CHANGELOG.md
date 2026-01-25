@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-17
+
+### Added
+- A new `--article-preview` flag (and its older alias `--add-article-preview`) to include the article preview text in the output.
+- Configuration file support for `add_instapaper_url` and `add_article_preview` options in the `[fields]` section of `config.toml`.
+
+### Changed
+- Renamed `--add-instapaper-url` to `--read-url` for brevity. The old flag is kept for backward compatibility.
+- Both `--read-url` and `--article-preview` now support `--no-` prefixes (e.g., `--no-read-url`) to override `true` values from the config file.
+
 ## [1.1.1] - 2025-12-30
 
 ### Added
