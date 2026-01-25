@@ -16,10 +16,14 @@ The project uses `pytest` for testing, `ruff` for linting and formatting, `mypy`
 
 ### Installation
 
-To install the necessary dependencies for development:
+To install the necessary dependencies for development, you can use `pip` or the provided `Makefile`:
 
 ```bash
+# Using pip
 pip install -e .[dev]
+
+# Or using make
+make install
 ```
 
 To set up the pre-commit hooks:
@@ -43,13 +47,13 @@ python -m src.instapaper_scraper.cli --format json
 
 ### Running Tests
 
-To run the test suite:
+To run the test suite (or use `make test`):
 
 ```bash
 pytest
 ```
 
-To run tests with code coverage:
+To run tests with code coverage (or use `make test-cov`):
 
 ```bash
 pytest --cov=src/instapaper_scraper --cov-report=term-missing
@@ -57,21 +61,39 @@ pytest --cov=src/instapaper_scraper --cov-report=term-missing
 
 ## Development Conventions
 
+A `Makefile` is provided to simplify common development tasks. Run `make help` to see all available commands.
+
 -   **Code Formatting**: The project uses `ruff` for consistent code formatting. To format the code, run:
     ```bash
+    # Direct command
     ruff format .
+
+    # Using Makefile
+    make format
     ```
 -   **Linting**: The project uses `ruff` for linting. To check for linting errors, run:
     ```bash
+    # Direct command
     ruff check .
+
+    # Using Makefile
+    make lint
     ```
 -   **Static Type Checking**: The project uses `mypy` for static type checking. To run the type checker, use:
     ```bash
+    # Direct command
     mypy src
+
+    # Using Makefile
+    make type-check
     ```
 -   **License Checking**: The project uses `licensecheck` to ensure license compliance. To run the license checker, use:
     ```bash
+    # Direct command
     licensecheck --zero
+
+    # Using Makefile
+    make license-check
     ```
 -   **Pre-Commit Hooks**: This project uses `pre-commit` to run checks before each commit. The hooks are defined in `.pre-commit-config.yaml` and include `ruff` and `mypy`.
 -   **Entry Point**: The main entry point for the CLI tool is the `main` function in `src/instapaper_scraper/cli.py`.
