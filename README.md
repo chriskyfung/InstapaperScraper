@@ -24,15 +24,19 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">
     <img src="https://img.shields.io/github/license/chriskyfung/InstapaperScraper" alt="GitHub License">
   </a>
-  <a href="https://github.com/sponsors/chriskyfung" title="Sponsor on GitHub">
-    <img src="https://img.shields.io/badge/Sponsor-GitHub-blue?logo=github-sponsors&colorA=263238&colorB=EC407A" alt="GitHub Sponsors Default">
-  </a>
-  <a href="https://www.buymeacoffee.com/chriskyfung" title="Support Coffee">
-    <img src="https://img.shields.io/badge/Support-Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=ffdd00&colorA=263238" alt="Buy Me A Coffee">
-  </a>
 </p>
 
 A powerful and reliable Python tool to automate the export of all your saved Instapaper bookmarks into various formats, giving you full ownership of your data.
+
+<!-- Sponsors -->
+<p align="center">
+  <a href="https://github.com/sponsors/chriskyfung" title="Sponsor on GitHub">
+    <img src="https://img.shields.io/badge/Sponsor-GitHub-blue?style=for-the-badge&logo=github-sponsors&colorA=263238&colorB=EC407A" alt="GitHub Sponsors Default">
+  </a>
+  <a href="https://www.buymeacoffee.com/chriskyfung" title="Support Coffee">
+    <img src="https://img.shields.io/badge/Support-Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=ffdd00&colorA=263238" alt="Buy Me A Coffee">
+  </a>
+</p>
 
 ## ✨ Features
 
