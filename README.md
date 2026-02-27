@@ -140,7 +140,7 @@ output_filename = "python-articles.db"
     -   `read_url`: Set to `true` to include the Instapaper read URL for each article.
     -   `article_preview`: Set to `true` to include the article's text preview.
 - **[output]**: A section to control the output file generation.
-	-   `format`: Sets the default output format (`csv`, `json`, or `sqlite`). This is overridden by the `--format` command-line flag.
+    -   `format`: Sets the default output format (`csv`, `json`, or `sqlite`). This is overridden by the `--format` command-line flag.
 - **[[folders]]**: Each `[[folders]]` block defines a specific folder.
     -   **key**: A short alias for the folder.
     -   **id**: The folder ID from the Instapaper URL.
