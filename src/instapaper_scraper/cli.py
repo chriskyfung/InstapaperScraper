@@ -15,7 +15,7 @@ from .auth import InstapaperAuthenticator
 from .api import InstapaperClient
 from .output import save_articles
 from .exceptions import ScraperStructureChanged
-from .constants import CONFIG_DIR
+from .constants import CONFIG_DIR, SUPPORTED_FORMATS
 
 # --- Constants ---
 CONFIG_FILENAME = "config.toml"
@@ -88,7 +88,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--format",
-        choices=["csv", "json", "sqlite"],
+        choices=SUPPORTED_FORMATS,
         help="Output format (default: csv, configurable)",
     )
     parser.add_argument(
