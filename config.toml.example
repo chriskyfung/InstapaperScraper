@@ -14,6 +14,11 @@ output_filename = "home-articles.csv"
 read_url = false
 article_preview = false
 
+# Default output format. Can be "csv", "json", or "sqlite".
+# This can be overridden by the --format command-line flag.
+[output]
+format = "csv"
+
 [[folders]]
 key = "ml"
 id = "1234567"

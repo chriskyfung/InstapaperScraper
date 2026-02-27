@@ -89,8 +89,7 @@ def main() -> None:
     parser.add_argument(
         "--format",
         choices=["csv", "json", "sqlite"],
-        default="csv",
-        help="Output format (default: csv)",
+        help="Output format (default: csv, configurable)",
     )
     parser.add_argument(
         "-o",
@@ -130,7 +129,16 @@ def main() -> None:
     config = load_config(args.config_path)
     folders = config.get("folders", []) if config else []
     fields_config = config.get("fields", {}) if config else {}
+    output_config = config.get("output", {}) if config else {}
     selected_folder = None
+
+    # Resolve output format, giving CLI priority over config
+    final_format = args.format or output_config.get("format", "csv")
+    if final_format not in ["csv", "json", "sqlite"]:
+        logging.warning(
+            f"Invalid format '{final_format}' in config. Falling back to 'csv'."
+        )
+        final_format = "csv"
 
     # Resolve boolean flags, giving CLI priority over config
     final_add_instapaper_url = (
@@ -185,7 +193,7 @@ def main() -> None:
         elif not selected_folder and config and config.get("output_filename"):
             output_filename = config["output_filename"]
         else:
-            ext = "db" if args.format == "sqlite" else args.format
+            ext = "db" if final_format == "sqlite" else final_format
             output_filename = DEFAULT_OUTPUT_FILENAME.format(ext=ext)
 
     session = requests.Session()
@@ -236,7 +244,7 @@ def main() -> None:
     try:
         save_articles(
             all_articles,
-            args.format,
+            final_format,
             output_filename,
             add_instapaper_url=final_add_instapaper_url,
             add_article_preview=final_add_article_preview,
