@@ -365,3 +365,53 @@ def test_flag_precedence_and_backward_compatibility(
         else "add_instapaper_url"
     )
     assert saved_kwargs[other_dest_key] is False
+
+
+@pytest.mark.parametrize(
+    "config_data, cli_args, expected_format",
+    [
+        (None, [], "csv"),  # No config, no flag -> default "csv"
+        ({"output": {"format": "json"}}, [], "json"),  # Config "json", no flag
+        (
+            {"output": {"format": "json"}},
+            ["--format", "sqlite"],
+            "sqlite",
+        ),  # Config "json", flag "sqlite" -> "sqlite"
+        (None, ["--format", "csv"], "csv"),  # No config, flag "csv"
+        (
+            {"output": {"format": "invalid"}},
+            [],
+            "csv",
+        ),  # Invalid format in config -> fallback to "csv"
+    ],
+    ids=[
+        "default_format",
+        "format_from_config",
+        "cli_overrides_config",
+        "format_from_cli",
+        "invalid_config_format",
+    ],
+)
+def test_format_precedence(
+    mock_auth,
+    mock_client,
+    mock_save,
+    monkeypatch,
+    config_data,
+    cli_args,
+    expected_format,
+):
+    """
+    Tests the precedence for the output format setting.
+    Precedence order: CLI Flag > Config File > Default ("csv").
+    """
+    argv = ["instapaper-scraper"] + cli_args
+    monkeypatch.setattr("sys.argv", argv)
+
+    with patch("instapaper_scraper.cli.load_config", return_value=config_data):
+        with patch("builtins.input", return_value="0"):
+            cli.main()
+
+    mock_save.assert_called_once()
+    saved_args = mock_save.call_args[0]
+    assert saved_args[1] == expected_format
