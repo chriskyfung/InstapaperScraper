@@ -1,7 +1,11 @@
 # Example configuration for instapaper-scraper
 
-# Default output filename for non-folder mode
-output_filename = "home-articles.csv"
+# Default output filename for the main unread article list
+output_filename = "unread-articles.csv"
+
+# Default output filenames for special collections
+liked_output_filename = "liked-articles.csv"
+archive_output_filename = "archive-articles.csv"
 
 # Instapaper credentials
 # You can still use .env file or environment variables for credentials
