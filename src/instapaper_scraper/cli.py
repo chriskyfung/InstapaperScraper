@@ -209,9 +209,9 @@ def main() -> None:
                 output_filename = config.get("liked_output_filename")
             elif folder_id == "archive":
                 output_filename = config.get("archive_output_filename")
-            elif selected_folder and "output_filename" in selected_folder:
+            elif selected_folder:
                 output_filename = selected_folder.get("output_filename")
-            elif not selected_folder:
+            else:  # Not in folder mode
                 output_filename = config.get("output_filename")
 
     if not output_filename:
