@@ -10,6 +10,8 @@ from bs4.element import Tag
 from .exceptions import ScraperStructureChanged
 from .constants import (
     INSTAPAPER_BASE_URL,
+    INSTAPAPER_LIKED_URL,
+    INSTAPAPER_ARCHIVE_URL,
     KEY_ID,
     KEY_TITLE,
     KEY_URL,
@@ -45,6 +47,10 @@ class InstapaperClient:
     # URL paths
     URL_PATH_USER = "/u/"
     URL_PATH_FOLDER = "/u/folder/"
+    SPECIAL_FOLDERS = {
+        "liked": INSTAPAPER_LIKED_URL,
+        "archive": INSTAPAPER_ARCHIVE_URL,
+    }
 
     # HTTP status codes
     HTTP_TOO_MANY_REQUESTS = 429
@@ -231,8 +237,14 @@ class InstapaperClient:
         self, page: int, folder_info: Optional[Dict[str, str]] = None
     ) -> str:
         """Constructs the URL for the given page, considering folder mode."""
-        if folder_info and folder_info.get("id") and folder_info.get("slug"):
-            return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_FOLDER}{folder_info['id']}/{folder_info['slug']}/{page}"
+        folder_id = folder_info.get("id") if folder_info else None
+
+        if folder_id in self.SPECIAL_FOLDERS:
+            base_url = self.SPECIAL_FOLDERS[folder_id]
+            return base_url if page == 1 else f"{base_url}/{page}"
+
+        if folder_info and folder_id and folder_info.get("slug"):
+            return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_FOLDER}{folder_id}/{folder_info['slug']}/{page}"
         return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_USER}{page}"
 
     def _parse_article_data(

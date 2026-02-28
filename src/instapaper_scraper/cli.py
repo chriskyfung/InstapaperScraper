@@ -155,46 +155,68 @@ def main() -> None:
     if args.folder:
         if args.folder.lower() == "none":
             selected_folder = None
+        elif args.folder.lower() in ("liked", "archive"):
+            selected_folder = {"id": args.folder.lower()}
         else:
             if not config:
                 logging.error(
-                    "Configuration file not found or failed to load. The --folder option requires a configuration file."
+                    "Configuration file not found or failed to load. The --folder option requires a configuration file for custom folders."
                 )
                 sys.exit(1)
-            else:
-                for f in folders:
-                    if args.folder in (f.get("key"), str(f.get("id")), f.get("slug")):
-                        selected_folder = f
-                        break
-                if not selected_folder:
-                    # If folder is not in config, treat it as a folder ID
-                    selected_folder = {"id": args.folder}
+
+            for f in folders:
+                if args.folder in (f.get("key"), str(f.get("id")), f.get("slug")):
+                    selected_folder = f
+                    break
+            if not selected_folder:
+                # If folder is not in config, treat it as a folder ID
+                selected_folder = {"id": args.folder}
     elif folders:
         print("Available folders:")
-        print("  0: none (non-folder mode)")
-        for i, folder in enumerate(folders):
+        folder_choices: List[Dict[str, Any]] = [
+            {"display": "__Home__ (scrape unfiled articles)", "info": None},
+            {"display": "__Liked__ (scrape liked articles)", "info": {"id": "liked"}},
+            {
+                "display": "__Archive__ (scrape archived articles)",
+                "info": {"id": "archive"},
+            },
+        ]
+        for folder in folders:
             display_name = folder.get("key") or folder.get("slug") or folder.get("id")
-            print(f"  {i + 1}: {display_name}")
+            folder_choices.append({"display": display_name, "info": folder})
+
+        for i, choice in enumerate(folder_choices):
+            print(f"  {i}: {choice['display']}")
 
         try:
-            choice = int(input("Select a folder (enter a number): "))
-            if 0 < choice <= len(folders):
-                selected_folder = folders[choice - 1]
-            elif choice != 0:
-                print("Invalid selection. Continuing in non-folder mode.")
+            choice_str = input(
+                f"Select a folder (enter a number 0-{len(folder_choices)-1})[default: 0]: "
+            )
+            choice_idx = int(choice_str) if choice_str else 0
+            if 0 <= choice_idx < len(folder_choices):
+                selected_folder = folder_choices[choice_idx]["info"]
+            else:
+                print("Invalid selection. Continuing with no folder selected.")
         except (ValueError, IndexError):
-            print("Invalid input. Continuing in non-folder mode.")
+            print("Invalid input. Continuing with no folder selected.")
 
     # Determine output filename
     output_filename = args.output
     if not output_filename:
-        if selected_folder and selected_folder.get("output_filename"):
-            output_filename = selected_folder["output_filename"]
-        elif not selected_folder and config and config.get("output_filename"):
-            output_filename = config["output_filename"]
-        else:
-            ext = "db" if final_format == "sqlite" else final_format
-            output_filename = DEFAULT_OUTPUT_FILENAME.format(ext=ext)
+        if config:
+            folder_id = selected_folder.get("id") if selected_folder else None
+            if folder_id == "liked":
+                output_filename = config.get("liked_output_filename")
+            elif folder_id == "archive":
+                output_filename = config.get("archive_output_filename")
+            elif selected_folder:
+                output_filename = selected_folder.get("output_filename")
+            else:  # Not in folder mode
+                output_filename = config.get("output_filename")
+
+    if not output_filename:
+        ext = "db" if final_format == "sqlite" else final_format
+        output_filename = DEFAULT_OUTPUT_FILENAME.format(ext=ext)
 
     session = requests.Session()
 

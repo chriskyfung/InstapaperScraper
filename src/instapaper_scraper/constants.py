@@ -7,6 +7,8 @@ APP_NAME = "instapaper-scraper"
 # --- URLS ---
 INSTAPAPER_BASE_URL = "https://www.instapaper.com"
 INSTAPAPER_READ_URL = f"{INSTAPAPER_BASE_URL}/read/"
+INSTAPAPER_LIKED_URL = f"{INSTAPAPER_BASE_URL}/liked"
+INSTAPAPER_ARCHIVE_URL = f"{INSTAPAPER_BASE_URL}/archive"
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".config" / APP_NAME

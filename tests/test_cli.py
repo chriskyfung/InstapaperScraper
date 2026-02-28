@@ -250,7 +250,7 @@ def test_cli_with_config_interactive_selection(
     monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
 
     with patch("instapaper_scraper.cli.load_config", return_value=config):
-        with patch("builtins.input", return_value="1"):
+        with patch("builtins.input", return_value="3"):
             cli.main()
 
     mock_client.return_value.get_all_articles.assert_called_once_with(
@@ -361,7 +361,7 @@ def test_cli_folder_argument_no_config_exits(
 
     assert e.value.code == 1
     assert (
-        "Configuration file not found or failed to load. The --folder option requires a configuration file."
+        "Configuration file not found or failed to load. The --folder option requires a configuration file for custom folders."
         in caplog.text
     )
     mock_auth.assert_not_called()

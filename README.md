@@ -41,7 +41,7 @@ A powerful and reliable Python tool to automate the export of all your saved Ins
 ## ✨ Features
 
 - Scrapes all bookmarks from your Instapaper account.
-- Supports scraping from specific folders.
+- Supports scraping from specific folders, including the special "Liked" and "Archive" collections.
 - Exports data to CSV, JSON, or a SQLite database.
 - Securely stores your session for future runs.
 - Modern, modular, and tested architecture.
@@ -108,8 +108,12 @@ You can define and quickly access your Instapaper folders and set default output
 Here is an example of `config.toml`:
 
 ```toml
-# Default output filename for non-folder mode
-output_filename = "home-articles.csv"
+# Default output filename for the main unread article list
+output_filename = "unread-articles.csv"
+
+# Default output filenames for special collections
+liked_output_filename = "liked-articles.csv"
+archive_output_filename = "archive-articles.csv"
 
 # Optional fields to include in the output.
 # These can be overridden by command-line flags.
@@ -135,7 +139,9 @@ slug = "python-programming"
 output_filename = "python-articles.db"
 ```
 
-- **output_filename (top-level)**: The default output filename to use when not in folder mode.
+- **output_filename (top-level)**: The default output filename to use when scraping the main unread articles list.
+- **liked_output_filename**: The default output filename for the **Liked** collection.
+- **archive_output_filename**: The default output filename for the **Archive** collection.
 - **[fields]**: A section to control which optional data fields are included in the output.
     -   `read_url`: Set to `true` to include the Instapaper read URL for each article.
     -   `article_preview`: Set to `true` to include the article's text preview.
@@ -147,7 +153,12 @@ output_filename = "python-articles.db"
     -   **slug**: The human-readable part of the folder URL.
     -   **output_filename (folder-specific)**: A preset output filename for scraped articles from this specific folder.
 
-When a `config.toml` file is present and no `--folder` argument is provided, the scraper will prompt you to select a folder. You can also specify a folder directly using the `--folder` argument with its key, ID, or slug. Use `--folder=none` to explicitly disable folder mode and scrape all articles.
+When a `config.toml` file is present and no `--folder` argument is provided, the scraper will prompt you to select a folder. The special **Liked** and **Archive** collections will always be available as the first options.
+
+You can also specify a folder directly using the `--folder` argument.
+- Use `--folder=liked` or `--folder=archive` to scrape these special collections.
+- For folders defined in your `config.toml`, use their `key`, `id`, or `slug`.
+- Use `--folder=none` to explicitly disable folder mode and scrape your main list of unread articles.
 
 ### 💻 Command-line Arguments
 
