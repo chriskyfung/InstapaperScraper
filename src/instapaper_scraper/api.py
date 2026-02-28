@@ -47,6 +47,10 @@ class InstapaperClient:
     # URL paths
     URL_PATH_USER = "/u/"
     URL_PATH_FOLDER = "/u/folder/"
+    SPECIAL_FOLDERS = {
+        "liked": INSTAPAPER_LIKED_URL,
+        "archive": INSTAPAPER_ARCHIVE_URL,
+    }
 
     # HTTP status codes
     HTTP_TOO_MANY_REQUESTS = 429
@@ -235,12 +239,8 @@ class InstapaperClient:
         """Constructs the URL for the given page, considering folder mode."""
         folder_id = folder_info.get("id") if folder_info else None
 
-        special_folders = {
-            "liked": INSTAPAPER_LIKED_URL,
-            "archive": INSTAPAPER_ARCHIVE_URL,
-        }
-        if folder_id in special_folders:
-            base_url = special_folders[folder_id]
+        if folder_id in self.SPECIAL_FOLDERS:
+            base_url = self.SPECIAL_FOLDERS[folder_id]
             return base_url if page == 1 else f"{base_url}/{page}"
 
         if folder_info and folder_id and folder_info.get("slug"):
