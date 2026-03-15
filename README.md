@@ -24,6 +24,9 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">
     <img src="https://img.shields.io/github/license/chriskyfung/InstapaperScraper" alt="GitHub License">
   </a>
+  <a href="https://deepwiki.com/chriskyfung/InstapaperScraper">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki">
+  </a>
 </p>
 
 A powerful and reliable Python tool to automate the export of all your saved Instapaper bookmarks into various formats, giving you full ownership of your data.
