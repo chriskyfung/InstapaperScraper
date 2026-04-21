@@ -4,6 +4,7 @@ import requests_mock
 import logging
 from unittest.mock import MagicMock, patch
 from bs4 import BeautifulSoup
+import re
 
 from instapaper_scraper.api import InstapaperClient
 from instapaper_scraper.exceptions import ScraperStructureChanged
@@ -365,6 +366,41 @@ def test_get_page_url(client, folder_info, expected_url_path):
     page = 1
     expected_url = f"{INSTAPAPER_BASE_URL}{expected_url_path}{page}"
     assert client._get_page_url(page, folder_info) == expected_url
+
+
+@pytest.mark.parametrize(
+    "invalid_folder_id",
+    [
+        "invalid id!",  # Contains space and exclamation mark
+        "invalid/id",  # Contains slash
+        "invalid?id",  # Contains question mark
+    ],
+)
+def test_get_page_url_invalid_folder_id(client, invalid_folder_id):
+    """Test _get_page_url raises ValueError for invalid folder_id."""
+    with pytest.raises(
+        ValueError,
+        match=f"Invalid characters in folder_id: {re.escape(invalid_folder_id)}",
+    ):
+        client._get_page_url(
+            page=1, folder_info={"id": invalid_folder_id, "slug": "any-slug"}
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_slug",
+    [
+        "invalid slug!",  # Contains space and exclamation mark
+        "invalid/slug",  # Contains slash
+        "invalid?slug",  # Contains question mark
+    ],
+)
+def test_get_page_url_invalid_slug(client, invalid_slug):
+    """Test _get_page_url raises ValueError for invalid slug."""
+    with pytest.raises(
+        ValueError, match=f"Invalid characters in slug: {re.escape(invalid_slug)}"
+    ):
+        client._get_page_url(page=1, folder_info={"id": "any-id", "slug": invalid_slug})
 
 
 def test_get_articles_connection_error_retries(client, session, monkeypatch, caplog):

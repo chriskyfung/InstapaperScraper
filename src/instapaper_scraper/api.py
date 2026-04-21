@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import re
 from typing import List, Dict, Tuple, Optional, Any
 
 import requests
@@ -238,6 +239,16 @@ class InstapaperClient:
     ) -> str:
         """Constructs the URL for the given page, considering folder mode."""
         folder_id = folder_info.get("id") if folder_info else None
+        slug = folder_info.get("slug") if folder_info else None
+
+        # Validate folder_id and slug for URL-safe characters
+        # Allowed characters: alphanumeric, hyphen, underscore
+        url_safe_pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+        if folder_id and not url_safe_pattern.match(folder_id):
+            raise ValueError(f"Invalid characters in folder_id: {folder_id}")
+        if slug and not url_safe_pattern.match(slug):
+            raise ValueError(f"Invalid characters in slug: {slug}")
 
         if folder_id in self.SPECIAL_FOLDERS:
             base_url = self.SPECIAL_FOLDERS[folder_id]
