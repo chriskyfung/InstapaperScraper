@@ -24,7 +24,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Environment (please complete the following information):**
- - Python Version: [e.g. 3.9.7]
+ - Python Version: [e.g. 3.12.3]
  - OS: [e.g. macOS 12.0.1, Ubuntu 20.04, Windows 10]
  - Installation Method: [e.g. pip, source]
  - Version: [e.g. 1.0.0]
