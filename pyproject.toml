@@ -80,5 +80,5 @@ dev = [
     "twine~=6.2.0",
     "mypy~=1.20.1",
     "pre-commit~=4.5.1",
-    "licensecheck~=2025.1.0"
+    "licensecheck"
 ]
