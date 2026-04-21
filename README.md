@@ -53,7 +53,7 @@ A powerful and reliable Python tool to automate the export of all your saved Ins
 
 ### 📋 1. Requirements
 
-- Python 3.9+
+- Python 3.10+
 
 ### 📦 2. Installation
 
