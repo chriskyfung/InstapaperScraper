@@ -1,3 +1,5 @@
+import os
+import tempfile
 import pytest
 import json
 import sqlite3
@@ -12,6 +14,7 @@ from instapaper_scraper.output import (
     save_to_json,
     save_to_sqlite,
     save_articles,
+    _validate_output_path,
     get_sqlite_create_table_sql,
     get_sqlite_insert_sql,
 )
@@ -366,3 +369,87 @@ def test_save_articles_unknown_format(sample_articles, output_dir, caplog):
         save_articles(sample_articles(), "unknown", str(output_file))
     assert "Unknown output format: unknown" in caplog.text
     assert not output_file.exists()
+
+
+class TestValidateOutputPath:
+    @pytest.fixture(autouse=True)
+    def setup_mock_paths(self, monkeypatch, tmp_path):
+        """
+        Mocks os.getcwd, os.path.expanduser, and tempfile.gettempdir
+        for each test in this class.
+        """
+        # Make cwd the tmp_path itself, so output_dir (tmp_path / "output") is within cwd
+        self._cwd = tmp_path
+        self._home_dir = tmp_path / "user_home_dir"
+        self._home_dir.mkdir()
+        self._temp_dir = tmp_path / "system_temp_dir"
+        self._temp_dir.mkdir()
+
+        monkeypatch.setattr(os, "getcwd", lambda: str(self._cwd))
+        # Mock os.path.expanduser to return the mocked home_dir only for "~"
+        original_expanduser = os.path.expanduser
+
+        def mock_expanduser(path):
+            if path == "~" or path.startswith("~/"):
+                # Handle paths like "~/Documents"
+                return (
+                    str(self._home_dir / path[2:])
+                    if path.startswith("~/")
+                    else str(self._home_dir)
+                )
+            return original_expanduser(path)
+
+        monkeypatch.setattr(os.path, "expanduser", mock_expanduser)
+
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(self._temp_dir))
+
+    @pytest.mark.parametrize(
+        "relative_path",
+        [
+            "file.txt",
+            "subdir/file.txt",
+            "./file.txt",
+        ],
+    )
+    def test_valid_path_in_cwd(self, relative_path):
+        """Test a valid path within the current working directory."""
+        filename = str(self._cwd / relative_path)
+        _validate_output_path(filename)  # Should not raise an error
+
+    @pytest.mark.parametrize(
+        "relative_path",
+        [
+            "file.txt",
+            "Documents/report.pdf",
+            "../user_home_dir/another_file.txt",  # Path that resolves within home dir
+        ],
+    )
+    def test_valid_path_in_home_dir(self, relative_path):
+        """Test a valid path within the user's home directory."""
+        filename = str(self._home_dir / relative_path)
+        _validate_output_path(filename)  # Should not raise an error
+
+    @pytest.mark.parametrize(
+        "relative_path",
+        [
+            "temp_output.log",
+            "my_app/cache.tmp",
+            "../system_temp_dir/log.txt",  # Path that resolves within temp dir
+        ],
+    )
+    def test_valid_path_in_temp_dir(self, relative_path):
+        """Test a valid path within the system's temporary directory."""
+        filename = str(self._temp_dir / relative_path)
+        _validate_output_path(filename)  # Should not raise an error
+
+    @pytest.mark.parametrize(
+        "malicious_path",
+        [
+            "/absolute/path/outside/safe/pwned.txt",
+            "../../../../etc/passwd",  # Relative path that resolves outside safe dirs
+        ],
+    )
+    def test_invalid_path_outside_safe_dirs(self, malicious_path):
+        """Test paths that attempt to traverse outside allowed directories."""
+        with pytest.raises(ValueError, match="Path traversal attempt detected"):
+            _validate_output_path(malicious_path)
