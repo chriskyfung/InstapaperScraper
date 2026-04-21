@@ -245,9 +245,9 @@ class InstapaperClient:
         # Allowed characters: alphanumeric, hyphen, underscore
         url_safe_pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
 
-        if folder_id and not url_safe_pattern.match(folder_id):
+        if folder_id and not url_safe_pattern.match(str(folder_id)):
             raise ValueError(f"Invalid characters in folder_id: {folder_id}")
-        if slug and not url_safe_pattern.match(slug):
+        if slug and not url_safe_pattern.match(str(slug)):
             raise ValueError(f"Invalid characters in slug: {slug}")
 
         if folder_id in self.SPECIAL_FOLDERS:
