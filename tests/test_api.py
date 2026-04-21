@@ -4,6 +4,7 @@ import requests_mock
 import logging
 from unittest.mock import MagicMock, patch
 from bs4 import BeautifulSoup
+import re
 
 from instapaper_scraper.api import InstapaperClient
 from instapaper_scraper.exceptions import ScraperStructureChanged
@@ -367,6 +368,41 @@ def test_get_page_url(client, folder_info, expected_url_path):
     assert client._get_page_url(page, folder_info) == expected_url
 
 
+@pytest.mark.parametrize(
+    "invalid_folder_id",
+    [
+        "invalid id!",  # Contains space and exclamation mark
+        "invalid/id",  # Contains slash
+        "invalid?id",  # Contains question mark
+    ],
+)
+def test_get_page_url_invalid_folder_id(client, invalid_folder_id):
+    """Test _get_page_url raises ValueError for invalid folder_id."""
+    with pytest.raises(
+        ValueError,
+        match=f"Invalid characters in folder_id: {re.escape(invalid_folder_id)}",
+    ):
+        client._get_page_url(
+            page=1, folder_info={"id": invalid_folder_id, "slug": "any-slug"}
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_slug",
+    [
+        "invalid slug!",  # Contains space and exclamation mark
+        "invalid/slug",  # Contains slash
+        "invalid?slug",  # Contains question mark
+    ],
+)
+def test_get_page_url_invalid_slug(client, invalid_slug):
+    """Test _get_page_url raises ValueError for invalid slug."""
+    with pytest.raises(
+        ValueError, match=f"Invalid characters in slug: {re.escape(invalid_slug)}"
+    ):
+        client._get_page_url(page=1, folder_info={"id": "any-id", "slug": invalid_slug})
+
+
 def test_get_articles_connection_error_retries(client, session, monkeypatch, caplog):
     """Test that get_articles retries on ConnectionError."""
     mock_sleep = MagicMock()
@@ -662,3 +698,8 @@ def test_get_articles_without_preview(client, session):
         assert len(articles) == 2
         assert "article_preview" not in articles[0]
         assert "article_preview" not in articles[1]
+
+
+def test_url_safe_pattern_is_compiled_regex():
+    """Test that URL_SAFE_PATTERN is a compiled regex object."""
+    assert isinstance(InstapaperClient.URL_SAFE_PATTERN, re.Pattern)
