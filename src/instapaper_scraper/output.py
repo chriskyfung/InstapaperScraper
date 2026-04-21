@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from typing import List, Dict, Any, TYPE_CHECKING
 
 from .constants import (
@@ -154,6 +155,38 @@ def save_to_sqlite(
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=db_name))
 
 
+def _validate_output_path(filename: str) -> None:
+    """
+    Validates that the output path is within a set of safe base directories
+    to prevent path traversal attacks.
+    """
+    # Get the real path to resolve symlinks and '..'
+    file_path = os.path.realpath(filename)
+
+    # Define safe base directories using realpath for consistent comparison.
+    safe_dirs = [
+        os.path.realpath(os.getcwd()),  # Current working directory
+        os.path.realpath(os.path.expanduser("~")),  # User's home directory
+        os.path.realpath(tempfile.gettempdir()),  # System's temporary directory
+    ]
+
+    is_safe = False
+    for base in safe_dirs:
+        try:
+            # Check if the file path is within the safe base directory.
+            if os.path.commonpath([base, file_path]) == base:
+                is_safe = True
+                break
+        except ValueError:
+            # On Windows, commonpath raises ValueError if paths are on different drives.
+            continue
+
+    if not is_safe:
+        raise ValueError(
+            f"Path traversal attempt detected. Output path '{filename}' is outside allowed directories (current working directory, home, or temp)."
+        )
+
+
 def _correct_ext(filename: str, format: str) -> str:
     """Corrects the filename extension based on the specified format."""
     extension_map = {
@@ -180,6 +213,8 @@ def save_articles(
     if not data:
         logging.info(LOG_NO_ARTICLES)
         return
+
+    _validate_output_path(filename)
 
     filename = _correct_ext(filename, format)
 
