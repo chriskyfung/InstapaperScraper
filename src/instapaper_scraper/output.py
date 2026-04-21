@@ -1,5 +1,6 @@
 import os
 import logging
+import tempfile
 from typing import List, Dict, Any, TYPE_CHECKING
 
 from .constants import (
@@ -154,6 +155,29 @@ def save_to_sqlite(
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=db_name))
 
 
+def _validate_output_path(filename: str) -> None:
+    """
+    Validates that the output path is within a set of safe base directories
+    to prevent path traversal attacks.
+    """
+    # Get the absolute path of the intended file, resolving any '..'
+    file_path = os.path.abspath(filename)
+
+    # Define safe base directories for cross-platform compatibility.
+    # Using a set for efficient checking and to avoid duplicates.
+    safe_dirs = {
+        os.path.abspath(os.getcwd()),  # Current working directory
+        os.path.abspath(os.path.expanduser("~")),  # User's home directory
+        os.path.abspath(tempfile.gettempdir()),  # System's temporary directory
+    }
+
+    # Check if the file path is within any of the safe base directories.
+    if not any(os.path.commonpath([base, file_path]) == base for base in safe_dirs):
+        raise ValueError(
+            f"Path traversal attempt detected. Output path '{filename}' is outside allowed directories (current working directory, home, or temp)."
+        )
+
+
 def _correct_ext(filename: str, format: str) -> str:
     """Corrects the filename extension based on the specified format."""
     extension_map = {
@@ -180,6 +204,8 @@ def save_articles(
     if not data:
         logging.info(LOG_NO_ARTICLES)
         return
+
+    _validate_output_path(filename)
 
     filename = _correct_ext(filename, format)
 
