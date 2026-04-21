@@ -53,6 +53,9 @@ class InstapaperClient:
         "archive": INSTAPAPER_ARCHIVE_URL,
     }
 
+    # URL validation
+    URL_SAFE_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+
     # HTTP status codes
     HTTP_TOO_MANY_REQUESTS = 429
     HTTP_SERVER_ERROR_START = 500
@@ -243,11 +246,9 @@ class InstapaperClient:
 
         # Validate folder_id and slug for URL-safe characters
         # Allowed characters: alphanumeric, hyphen, underscore
-        url_safe_pattern = re.compile(r"^[a-zA-Z0-9_-]+$")
-
-        if folder_id and not url_safe_pattern.match(str(folder_id)):
+        if folder_id and not self.URL_SAFE_PATTERN.match(str(folder_id)):
             raise ValueError(f"Invalid characters in folder_id: {folder_id}")
-        if slug and not url_safe_pattern.match(str(slug)):
+        if slug and not self.URL_SAFE_PATTERN.match(str(slug)):
             raise ValueError(f"Invalid characters in slug: {slug}")
 
         if folder_id in self.SPECIAL_FOLDERS:

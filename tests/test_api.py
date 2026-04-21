@@ -698,3 +698,8 @@ def test_get_articles_without_preview(client, session):
         assert len(articles) == 2
         assert "article_preview" not in articles[0]
         assert "article_preview" not in articles[1]
+
+
+def test_url_safe_pattern_is_compiled_regex():
+    """Test that URL_SAFE_PATTERN is a compiled regex object."""
+    assert isinstance(InstapaperClient.URL_SAFE_PATTERN, re.Pattern)
