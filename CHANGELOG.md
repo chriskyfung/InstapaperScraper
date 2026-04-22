@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1rc1] - 2026-04-22
+
+### Added
+- Added `context7.json` configuration file to enable Context7 platform integration.
+
+### Changed
+- Dropped Python 3.9 support, setting the minimum required version to 3.10.
+- Pinned development dependency versions for reproducible builds.
+- **Dependencies**:
+  - Bump `requests` from 2.32.5 to 2.33.1.
+  - Bump `urllib3` from 2.5.0 to 2.6.3.
+  - Bump `cryptography` from 46.0.3 to 46.0.7.
+
+### Security
+- Added input validation to ensure `folder_id` and `slug` contain only URL-safe characters.
+- Prevented path traversal vulnerabilities in output filenames.
+
 ## [1.3.0] - 2026-04-08
 
 ### Added
