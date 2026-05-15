@@ -26,14 +26,14 @@ dependencies = [
     "beautifulsoup4~=4.14.2",
     "certifi>=2025.11.12,<2026.5.0",
     "charset-normalizer~=3.4.3",
-    "cryptography~=46.0.7",
+    "cryptography>=46.0.7,<48.1.0",
     "guara~=0.0.14",
     "idna~=3.11",
     "python-dotenv~=1.2.1",
-    "requests~=2.33.1",
+    "requests>=2.33.1,<2.35.0",
     "soupsieve~=2.8",
     "typing_extensions~=4.15.0",
-    "urllib3~=2.6.3",
+    "urllib3>=2.6.3,<2.8.0",
     "tomli~=2.0.1; python_version < '3.11'"
 ]
 
