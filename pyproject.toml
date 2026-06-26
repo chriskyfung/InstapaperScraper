@@ -23,10 +23,10 @@ classifiers = [
 ]
 license-files = ["LICEN[CS]E*"]
 dependencies = [
-    "beautifulsoup4~=4.14.2",
-    "certifi>=2025.11.12,<2026.6.0",
+    "beautifulsoup4>=4.14.2,<4.16.0",
+    "certifi>=2025.11.12,<2026.7.0",
     "charset-normalizer~=3.4.3",
-    "cryptography>=46.0.7,<48.1.0",
+    "cryptography>=46.0.7,<49.1.0",
     "guara~=0.0.14",
     "idna~=3.11",
     "python-dotenv~=1.2.1",
