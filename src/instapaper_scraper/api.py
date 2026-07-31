@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple, Optional, Any
 
 import requests
 
-from .exceptions import InstapaperAPIError, ApiResponseError
+from .exceptions import InstapaperAPIError, ApiParseError
 from .constants import (
     INSTAPAPER_BOOKMARKS_URL,
     INSTAPAPER_USER_SESSION_URL,
@@ -140,6 +140,10 @@ class InstapaperClient:
                         self._form_key = form_key
                 except ValueError:
                     logging.warning(self.MSG_INVALID_JSON)
+            else:
+                logging.warning(
+                    f"User session request failed with status {response.status_code}."
+                )
         except requests.RequestException as e:
             logging.warning(self.MSG_SESSION_FETCH_FAILED.format(e=e))
 
@@ -206,7 +210,7 @@ class InstapaperClient:
 
             except (InstapaperAPIError, ValueError) as e:
                 logging.error(self.MSG_API_RESPONSE_ERROR.format(e=e))
-                raise ApiResponseError(self.MSG_API_RESPONSE_ERROR.format(e=e))
+                raise ApiParseError(self.MSG_API_RESPONSE_ERROR.format(e=e))
             except Exception as e:
                 last_exception = e
                 self._wait_for_retry(
