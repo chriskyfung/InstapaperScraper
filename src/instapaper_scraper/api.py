@@ -138,9 +138,9 @@ class InstapaperClient:
                     if form_key:
                         self._form_key = form_key
                 except ValueError:
-                    pass  # Not JSON; proceed without form_key
-        except requests.RequestException:
-            pass  # Best-effort; proceed without form_key
+                    logging.warning(self.MSG_INVALID_JSON)
+        except requests.RequestException as e:
+            logging.warning(self.MSG_SESSION_FETCH_FAILED.format(e=e))
 
     def get_articles(
         self,
