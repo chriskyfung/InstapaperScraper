@@ -84,6 +84,7 @@ class InstapaperClient:
     MSG_RETRY_ATTEMPT = "{reason} (attempt {attempt_num}/{max_retries}). Retrying in {sleep_time:.2f} seconds."
     MSG_INVALID_JSON = "Invalid JSON response from Instapaper API."
     MSG_SESSION_FETCH_FAILED = "Failed to fetch user session: {e}"
+    MSG_SESSION_FETCH_NON_OK = "User session request failed with status {status_code}."
     MSG_PARSE_FAILED = "Could not parse bookmark {id}: {e}"
 
     def __init__(self, session: requests.Session):
@@ -142,7 +143,9 @@ class InstapaperClient:
                     logging.warning(self.MSG_INVALID_JSON)
             else:
                 logging.warning(
-                    f"User session request failed with status {response.status_code}."
+                    self.MSG_SESSION_FETCH_NON_OK.format(
+                        status_code=response.status_code
+                    )
                 )
         except requests.RequestException as e:
             logging.warning(self.MSG_SESSION_FETCH_FAILED.format(e=e))
