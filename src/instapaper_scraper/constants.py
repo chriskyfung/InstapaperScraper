@@ -9,10 +9,8 @@ INSTAPAPER_BASE_URL = "https://www.instapaper.com"
 INSTAPAPER_USER_SESSION_URL = f"{INSTAPAPER_BASE_URL}/data/user_session"
 INSTAPAPER_BOOKMARKS_URL = f"{INSTAPAPER_BASE_URL}/data/bookmarks"
 
-# Legacy URL constants — kept for backward compatibility; removed from active use.
+# Used by output.py to construct Instapaper read URLs.
 INSTAPAPER_READ_URL = f"{INSTAPAPER_BASE_URL}/read/"
-INSTAPAPER_LIKED_URL = f"{INSTAPAPER_BASE_URL}/liked"
-INSTAPAPER_ARCHIVE_URL = f"{INSTAPAPER_BASE_URL}/archive"
 
 # --- Paths ---
 CONFIG_DIR = Path.home() / ".config" / APP_NAME
