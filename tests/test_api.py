@@ -3,12 +3,14 @@ import requests
 import requests_mock
 import logging
 from unittest.mock import MagicMock, patch
-from bs4 import BeautifulSoup
 import re
 
 from instapaper_scraper.api import InstapaperClient
 from instapaper_scraper.exceptions import ScraperStructureChanged
-from instapaper_scraper.constants import INSTAPAPER_BASE_URL, KEY_ID
+from instapaper_scraper.constants import (
+    INSTAPAPER_BOOKMARKS_URL,
+    INSTAPAPER_USER_SESSION_URL,
+)
 
 
 @pytest.fixture
@@ -33,72 +35,83 @@ def assert_article_data(article, expected_id, expected_title, expected_url):
 def assert_article_preview_data(
     article, expected_id, expected_title, expected_url, expected_preview
 ):
-    """Helper to assert the structure and content of an article dictionary."""
+    """Helper to assert the structure and content of an article dictionary with preview."""
     assert article["id"] == expected_id
     assert article["title"] == expected_title
     assert article["url"] == expected_url
     assert article["article_preview"] == expected_preview
 
 
-def get_mock_html(
+def get_mock_bookmarks_json(
     page_num,
     has_more=True,
-    malformed=False,
-    no_articles=False,
     with_preview=False,
     missing_preview=False,
+    malformed=False,
 ):
-    """Generates mock HTML for a page of articles."""
-    articles_html = ""
-    if not no_articles:
+    """Generates mock JSON response for a page of bookmarks."""
+    bookmarks = []
+    if not malformed:
         for i in range(1, 3):
             article_id = (page_num - 1) * 2 + i
-            preview_html = ""
-            if with_preview:
-                if missing_preview and i == 2:
-                    preview_html = ""
-                else:
-                    preview_html = f'<div class="article_preview">Preview for article {article_id}</div>'
+            bm = {
+                "id": article_id,
+                "url": f"http://example.com/{article_id}",
+                "title": f"Article {article_id}",
+                "description": f"Preview for article {article_id}"
+                if with_preview
+                else "",
+            }
+            bm["description"] = bm.get("description", "")
+            if missing_preview and i == 2:
+                bm["description"] = ""
+            bookmarks.append(bm)
+    else:
+        # Malformed: missing title for second bookmark
+        bm1 = {
+            "id": (page_num - 1) * 2 + 1,
+            "url": f"http://example.com/{(page_num - 1) * 2 + 1}",
+            "title": f"Article {(page_num - 1) * 2 + 1}",
+        }
+        bookmarks.append(bm1)
+        bm2 = {
+            "id": (page_num - 1) * 2 + 2,
+            # title missing — triggers warning
+        }
+        bookmarks.append(bm2)
 
-            if malformed and i == 2:
-                articles_html += f"""
-                <article id="article_{article_id}">
-                    <div class="no_title">Article {article_id}</div>
-                    <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
-                    {preview_html}
-                </article>
-                """
-            else:
-                articles_html += f"""
-                <article id="article_{article_id}">
-                    <div class="article_title">Article {article_id}</div>
-                    <div class="title_meta"><a href="http://example.com/{article_id}">example.com</a></div>
-                    {preview_html}
-                </article>
-                """
+    return {"bookmarks": bookmarks, "page": page_num, "has_more": has_more}
 
-    pagination_html = (
-        '<div class="paginate_older"><a>Older</a></div>' if has_more else ""
+
+def get_mock_session_json(form_key="test_form_key_1234567890"):
+    """Generates mock JSON response for user_session."""
+    return {
+        "user": {
+            "id": 12345,
+            "email": "test@example.com",
+            "username": "testuser",
+            "form_key": form_key,
+            "folders": [],
+            "tags": [],
+        }
+    }
+
+
+def setup_session_mock(m, form_key="test_form_key_1234567890"):
+    """Helper to set up the user_session mock."""
+    m.get(
+        INSTAPAPER_USER_SESSION_URL,
+        json=get_mock_session_json(form_key),
     )
-
-    return f"""
-    <html>
-        <body>
-            <div id="article_list">
-                {articles_html}
-            </div>
-            {pagination_html}
-        </body>
-    </html>
-    """
 
 
 def test_get_articles_single_page_success(client, session):
-    """Test successfully scraping a single page of articles."""
+    """Test successfully fetching a single page of articles."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, has_more=True, with_preview=True),
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(page_num=1, has_more=True, with_preview=True),
         )
 
         articles, has_more = client.get_articles(page=1, add_article_preview=True)
@@ -122,11 +135,12 @@ def test_get_articles_single_page_success(client, session):
 
 
 def test_get_articles_last_page(client, session):
-    """Test scraping the last page of articles."""
+    """Test fetching the last page of articles."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/2",
-            text=get_mock_html(page_num=2, has_more=False),
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(page_num=2, has_more=False),
         )
 
         articles, has_more = client.get_articles(page=2)
@@ -140,13 +154,14 @@ def test_get_articles_last_page(client, session):
 def test_get_all_articles_multiple_pages(client, session):
     """Test iterating through multiple pages to get all articles."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, has_more=True),
+            INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=1&sort=newest",
+            json=get_mock_bookmarks_json(page_num=1, has_more=True),
         )
         m.get(
-            "https://www.instapaper.com/u/2",
-            text=get_mock_html(page_num=2, has_more=False),
+            INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=2&sort=newest",
+            json=get_mock_bookmarks_json(page_num=2, has_more=False),
         )
 
         all_articles = client.get_all_articles()
@@ -162,9 +177,10 @@ def test_get_all_articles_with_limit(client, session, caplog):
     """Test that get_all_articles respects the page limit."""
     with caplog.at_level(logging.INFO):
         with requests_mock.Mocker() as m:
+            setup_session_mock(m)
             m.get(
-                "https://www.instapaper.com/u/1",
-                text=get_mock_html(page_num=1, has_more=True),
+                INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=1&sort=newest",
+                json=get_mock_bookmarks_json(page_num=1, has_more=True),
             )
 
             all_articles = client.get_all_articles(limit=1)
@@ -176,12 +192,9 @@ def test_get_all_articles_with_limit(client, session, caplog):
 
 
 def test_get_all_articles_stops_at_limit(client, session, caplog):
-    """Test that get_all_articles stops scraping when the limit is reached, even if more pages are available."""
+    """Test that get_all_articles stops scraping when the limit is reached."""
     LIMIT = 3
     with caplog.at_level(logging.INFO):
-        # Instead of mocking the URL directly, we mock the internal get_articles method
-        # to control its return values and has_more flag.
-        # This requires patching the method *on the instance*
         with patch.object(client, "get_articles") as mock_get_articles:
             mock_get_articles.side_effect = (
                 lambda page, folder_info, add_article_preview: (
@@ -191,57 +204,37 @@ def test_get_all_articles_stops_at_limit(client, session, caplog):
                 )
             )
 
-            # Set a limit such that it should trigger the logging.info
-            # If limit is 1, and get_articles always returns has_more=True,
-            # the loop will run for page=1, then page becomes 2, then page > limit (2 > 1) is true.
             all_articles = client.get_all_articles(limit=LIMIT)
 
-            # The mock_get_articles should have been called LIMIT times.
             assert mock_get_articles.call_count == LIMIT
-            assert (
-                len(all_articles) == LIMIT
-            )  # Articles from the first LIMIT pages should be collected
+            assert len(all_articles) == LIMIT
 
 
 def test_unrecoverable_http_error_raises_exception(client, session, caplog):
     """Test that an unrecoverable HTTP error (e.g., 403) raises an exception."""
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", status_code=403)  # Forbidden
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, status_code=403)
 
         with caplog.at_level(logging.ERROR):
             with pytest.raises(requests.exceptions.HTTPError) as excinfo:
                 client.get_articles(page=1)
             assert "Request failed with unrecoverable status code 403." in caplog.text
             assert excinfo.value.response.status_code == 403
-        assert m.call_count == 1  # Should not retry
-
-
-def test_parse_article_data_missing_article_element(client, caplog):
-    """Test that _parse_article_data handles a missing article element by logging a warning and skipping it."""
-    html = get_mock_html(page_num=1)  # Contains article_1 and article_2
-    soup = BeautifulSoup(html, "html.parser")
-
-    # article_ids will contain an ID that's not in the soup
-    article_ids = ["1", "999"]  # 999 does not exist in the mock HTML
-
-    with caplog.at_level(logging.WARNING):
-        parsed_data = client._parse_article_data(soup, article_ids, page=1)
-
-        assert len(parsed_data) == 1
-        assert parsed_data[0][KEY_ID] == "1"
-        assert "Article element 'article_999' not found." in caplog.text
+        assert m.call_count == 2  # session + 1 bookmarks
 
 
 @pytest.mark.parametrize("status_code", [500, 502, 503])
 def test_http_error_retries(client, session, status_code, caplog):
     """Test that the client retries on 5xx server errors."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
+            INSTAPAPER_BOOKMARKS_URL,
             [
                 {"status_code": status_code},
                 {"status_code": status_code},
-                {"text": get_mock_html(1)},
+                {"json": get_mock_bookmarks_json(1)},
             ],
         )
 
@@ -251,14 +244,15 @@ def test_http_error_retries(client, session, status_code, caplog):
             articles, has_more = client.get_articles(page=1)
             assert f"Request failed with status {status_code}" in caplog.text
 
-        assert m.call_count == 3
+        assert m.call_count == 4  # session + 3 bookmarks
         assert len(articles) == 2
 
 
 def test_http_error_all_retries_fail(client, session, caplog):
     """Test that an exception is raised after all retries fail for a 5xx error."""
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", status_code=500)
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, status_code=500)
 
         client.max_retries = 2
         client.backoff_factor = 0.01
@@ -268,66 +262,77 @@ def test_http_error_all_retries_fail(client, session, caplog):
                 client.get_articles(page=1)
             assert f"All {client.max_retries} retries failed." in caplog.text
 
-        assert m.call_count == client.max_retries
+        assert m.call_count == 3  # session + 2 bookmarks
 
 
 def test_4xx_error_does_not_retry(client, session):
     """Test that client-side 4xx errors do not trigger a retry."""
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", status_code=404)
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, status_code=404)
 
         with pytest.raises(requests.exceptions.HTTPError):
             client.get_articles(page=1)
 
-        assert m.call_count == 1
+        assert m.call_count == 2  # session + 1 bookmarks
 
 
-def test_folder_mode_url_construction(client, session):
-    """Test that the URL is correctly constructed when in folder mode."""
+def test_folder_mode_request_params(client, session):
+    """Test that the request params are correctly constructed when in folder mode."""
     with requests_mock.Mocker() as m:
-        expected_url = "https://www.instapaper.com/u/folder/12345/my-folder/1"
-        m.get(expected_url, text=get_mock_html(1))
+        setup_session_mock(m)
+        m.get(
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(1),
+        )
 
         client.get_articles(page=1, folder_info={"id": "12345", "slug": "my-folder"})
 
         assert m.called
-        assert m.last_request.url == expected_url
+        assert m.last_request.qs["section_type"] == ["folder"]
+        assert m.last_request.qs["folder_id"] == ["12345"]
+        assert m.last_request.qs["page"] == ["1"]
 
 
 def test_429_error_with_retry_after(client, session, monkeypatch):
     """Test handling of 429 error with a Retry-After header."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         mock_sleep = MagicMock()
         monkeypatch.setattr("time.sleep", mock_sleep)
 
         m.get(
-            "https://www.instapaper.com/u/1",
+            INSTAPAPER_BOOKMARKS_URL,
             [
                 {"status_code": 429, "headers": {"Retry-After": "5"}},
-                {"text": get_mock_html(1)},
+                {"json": get_mock_bookmarks_json(1)},
             ],
         )
 
         client.get_articles(page=1)
 
-        assert m.call_count == 2
-        mock_sleep.assert_called_once_with(5)
+        assert m.call_count == 3  # session + 2 bookmarks
+        mock_sleep.assert_called_with(5)
 
 
-def test_malformed_article_is_skipped(client, session, caplog):
-    """Test that a malformed article is skipped and a warning is logged."""
+def test_malformed_article_is_handled(client, session, caplog):
+    """Test that a malformed article (missing title) is handled gracefully."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, malformed=True),
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(page_num=1, malformed=True),
         )
 
         with caplog.at_level(logging.WARNING):
             articles, _ = client.get_articles(page=1)
 
-            assert len(articles) == 1
+            assert len(articles) == 2
             assert articles[0]["id"] == "1"
-            assert "Could not parse article with id 2" in caplog.text
+            assert articles[0]["title"] == "Article 1"
+            assert articles[1]["id"] == "2"
+            assert articles[1]["title"] == ""
+            assert "missing title" in caplog.text
 
 
 def test_init_with_env_vars(monkeypatch, session):
@@ -349,58 +354,27 @@ def test_init_with_invalid_env_vars_defaults(monkeypatch, session):
 
 
 @pytest.mark.parametrize(
-    "folder_info, expected_url_path",
+    "folder_info, expected_section_type, expected_folder_id",
     [
-        (None, "/u/"),
-        ({"id": "123", "slug": "test-folder"}, "/u/folder/123/test-folder/"),
-        ({"id": "456"}, "/u/"),  # Missing slug, should fall back to user path
-        (
-            {"slug": "another-folder"},
-            "/u/",
-        ),  # Missing id, should fall back to user path
-        ({}, "/u/"),  # Empty dict, should fall back to user path
+        (None, "home", None),
+        ({"id": "liked"}, "liked", None),
+        ({"id": "archive"}, "archive", None),
+        ({"id": "12345", "slug": "test-folder"}, "folder", "12345"),
+        ({"id": "456"}, "folder", "456"),
     ],
 )
-def test_get_page_url(client, folder_info, expected_url_path):
-    """Test _get_page_url constructs correct URLs for different folder_info."""
-    page = 1
-    expected_url = f"{INSTAPAPER_BASE_URL}{expected_url_path}{page}"
-    assert client._get_page_url(page, folder_info) == expected_url
-
-
-@pytest.mark.parametrize(
-    "invalid_folder_id",
-    [
-        "invalid id!",  # Contains space and exclamation mark
-        "invalid/id",  # Contains slash
-        "invalid?id",  # Contains question mark
-    ],
-)
-def test_get_page_url_invalid_folder_id(client, invalid_folder_id):
-    """Test _get_page_url raises ValueError for invalid folder_id."""
-    with pytest.raises(
-        ValueError,
-        match=f"Invalid characters in folder_id: {re.escape(invalid_folder_id)}",
-    ):
-        client._get_page_url(
-            page=1, folder_info={"id": invalid_folder_id, "slug": "any-slug"}
-        )
-
-
-@pytest.mark.parametrize(
-    "invalid_slug",
-    [
-        "invalid slug!",  # Contains space and exclamation mark
-        "invalid/slug",  # Contains slash
-        "invalid?slug",  # Contains question mark
-    ],
-)
-def test_get_page_url_invalid_slug(client, invalid_slug):
-    """Test _get_page_url raises ValueError for invalid slug."""
-    with pytest.raises(
-        ValueError, match=f"Invalid characters in slug: {re.escape(invalid_slug)}"
-    ):
-        client._get_page_url(page=1, folder_info={"id": "any-id", "slug": invalid_slug})
+def test_build_request_params(
+    client, folder_info, expected_section_type, expected_folder_id
+):
+    """Test _build_request_params constructs correct params for different folder_info."""
+    params = client._build_request_params(1, folder_info)
+    assert params["section_type"] == expected_section_type
+    assert params["page"] == 1
+    assert params["sort"] == "newest"
+    if expected_folder_id:
+        assert params["folder_id"] == expected_folder_id
+    else:
+        assert "folder_id" not in params
 
 
 def test_get_articles_connection_error_retries(client, session, monkeypatch, caplog):
@@ -409,11 +383,12 @@ def test_get_articles_connection_error_retries(client, session, monkeypatch, cap
     monkeypatch.setattr("time.sleep", mock_sleep)
 
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
+            INSTAPAPER_BOOKMARKS_URL,
             [
                 {"exc": requests.exceptions.ConnectionError("Test error")},
-                {"text": get_mock_html(1)},
+                {"json": get_mock_bookmarks_json(1)},
             ],
         )
 
@@ -427,7 +402,7 @@ def test_get_articles_connection_error_retries(client, session, monkeypatch, cap
                 in caplog.text
             )
 
-        assert m.call_count == 2
+        assert m.call_count == 3  # session + 2 bookmarks
         assert len(articles) == 2
         assert mock_sleep.call_count == 1
 
@@ -438,12 +413,13 @@ def test_get_articles_timeout_retries(client, session, monkeypatch):
     monkeypatch.setattr("time.sleep", mock_sleep)
 
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
+            INSTAPAPER_BOOKMARKS_URL,
             [
                 {"exc": requests.exceptions.Timeout},
                 {"exc": requests.exceptions.Timeout},
-                {"text": get_mock_html(1)},
+                {"json": get_mock_bookmarks_json(1)},
             ],
         )
 
@@ -452,15 +428,21 @@ def test_get_articles_timeout_retries(client, session, monkeypatch):
 
         articles, has_more = client.get_articles(page=1)
 
-        assert m.call_count == 3
+        assert m.call_count == 4  # session + 3 bookmarks
         assert len(articles) == 2
         assert mock_sleep.call_count == 2
 
 
-def test_get_articles_all_retries_fail_connection_error(client, session, caplog):
+def test_get_articles_all_retries_fail_connection_error(
+    client, session, caplog, monkeypatch
+):
     """Test that ConnectionError is re-raised after all retries fail."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", exc=requests.exceptions.ConnectionError)
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, exc=requests.exceptions.ConnectionError)
 
         client.max_retries = 2
         client.backoff_factor = 0.01
@@ -470,13 +452,17 @@ def test_get_articles_all_retries_fail_connection_error(client, session, caplog)
                 client.get_articles(page=1)
             assert "All 2 retries failed." in caplog.text
 
-        assert m.call_count == 2
+        assert m.call_count == 3  # session + 2 bookmarks
 
 
-def test_get_articles_all_retries_fail_timeout(client, session):
+def test_get_articles_all_retries_fail_timeout(client, session, monkeypatch):
     """Test that Timeout is re-raised after all retries fail."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", exc=requests.exceptions.Timeout)
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, exc=requests.exceptions.Timeout)
 
         client.max_retries = 2
         client.backoff_factor = 0.01
@@ -484,50 +470,32 @@ def test_get_articles_all_retries_fail_timeout(client, session):
         with pytest.raises(requests.exceptions.Timeout):
             client.get_articles(page=1)
 
-        assert m.call_count == 2
+        assert m.call_count == 3  # session + 2 bookmarks
 
 
-def test_get_articles_handles_parsing_type_error(client, caplog, monkeypatch):
-    """Test that a TypeError in _parse_article_data is handled."""
-    mock_sleep = MagicMock()
-    monkeypatch.setattr("time.sleep", mock_sleep)
-    client.max_retries = 2
-    client.backoff_factor = 0.01
-
+def test_get_articles_invalid_json_raises_structure_changed(client, session):
+    """Test that invalid JSON (missing bookmarks key) raises ."""
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", text=get_mock_html(1))
-
-        with caplog.at_level(logging.WARNING):
-            with patch.object(
-                client, "_parse_article_data", side_effect=TypeError("Test Error")
-            ):
-                with pytest.raises(TypeError, match="Test Error"):
-                    client.get_articles(page=1)
-                assert (
-                    "Scraping failed after multiple retries for an unknown reason"
-                    in caplog.text
-                )
-    assert mock_sleep.call_count == client.max_retries
-
-
-def test_get_articles_scraper_structure_changed_re_raise(client, session):
-    """Test that ScraperStructureChanged is re-raised immediately."""
-    with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text="<html><body>No article list</body></html>",
+            INSTAPAPER_BOOKMARKS_URL,
+            json={"unexpected": "response"},
         )
 
         with pytest.raises(ScraperStructureChanged):
             client.get_articles(page=1)
 
-        assert m.call_count == 1
 
-
-def test_get_articles_unexpected_exception_after_retries(client, session, caplog):
+def test_get_articles_unexpected_exception_after_retries(
+    client, session, caplog, monkeypatch
+):
     """Test that an unexpected exception is raised after all retries fail."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", exc=Exception("Unknown error"))
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, exc=Exception("Unknown error"))
 
         client.max_retries = 2
         client.backoff_factor = 0.01
@@ -537,20 +505,21 @@ def test_get_articles_unexpected_exception_after_retries(client, session, caplog
                 client.get_articles(page=1)
             assert "All 2 retries failed." in caplog.text
 
-        assert m.call_count == 2
+        assert m.call_count == 3  # session + 2 bookmarks
 
 
 def test_handle_http_error_404_no_retry(client, session, caplog):
     """Test that a 404 error does not trigger a retry."""
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u/1", status_code=404)
+        setup_session_mock(m)
+        m.get(INSTAPAPER_BOOKMARKS_URL, status_code=404)
 
         with caplog.at_level(logging.ERROR):
             with pytest.raises(requests.exceptions.HTTPError):
                 client.get_articles(page=1)
 
             assert "Error 404: Not Found" in caplog.text
-            assert m.call_count == 1  # Only one call, no retry
+            assert m.call_count == 2  # session + 1 bookmarks
 
 
 def test_handle_http_error_429_no_retry_after_header(
@@ -561,11 +530,12 @@ def test_handle_http_error_429_no_retry_after_header(
     monkeypatch.setattr("time.sleep", mock_sleep)
 
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
+            INSTAPAPER_BOOKMARKS_URL,
             [
                 {"status_code": 429},  # No Retry-After header
-                {"text": get_mock_html(1)},
+                {"json": get_mock_bookmarks_json(1)},
             ],
         )
 
@@ -575,7 +545,7 @@ def test_handle_http_error_429_no_retry_after_header(
         with caplog.at_level(logging.WARNING):
             articles, _ = client.get_articles(page=1)
 
-            assert m.call_count == 2
+            assert m.call_count == 3  # session + 2 bookmarks
             assert mock_sleep.call_count == 1
             assert (
                 "Rate limited (429) (attempt 1/2). Retrying in 0.01 seconds."
@@ -590,11 +560,12 @@ def test_http_error_429_with_invalid_retry_after(client, session, monkeypatch, c
     monkeypatch.setattr("time.sleep", mock_sleep)
 
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
+            INSTAPAPER_BOOKMARKS_URL,
             [
                 {"status_code": 429, "headers": {"Retry-After": "invalid"}},
-                {"text": get_mock_html(1)},
+                {"json": get_mock_bookmarks_json(1)},
             ],
         )
 
@@ -605,7 +576,7 @@ def test_http_error_429_with_invalid_retry_after(client, session, monkeypatch, c
             client.get_articles(page=1)
             assert "Rate limited (429)" in caplog.text
 
-        assert m.call_count == 2
+        assert m.call_count == 3  # session + 2 bookmarks
         mock_sleep.assert_called_once()
 
 
@@ -613,40 +584,26 @@ def test_get_all_articles_reaches_limit(client, session, caplog):
     """Test that get_all_articles stops when the page limit is reached."""
     with caplog.at_level(logging.INFO):
         with requests_mock.Mocker() as m:
+            setup_session_mock(m)
             m.get(
-                "https://www.instapaper.com/u/1",
-                text=get_mock_html(page_num=1, has_more=True),
+                INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=1&sort=newest",
+                json=get_mock_bookmarks_json(page_num=1, has_more=True),
             )
             m.get(
-                "https://www.instapaper.com/u/2",
-                text=get_mock_html(page_num=2, has_more=True),
+                INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=2&sort=newest",
+                json=get_mock_bookmarks_json(page_num=2, has_more=True),
             )
             client.get_all_articles(limit=1)
             assert "Reached page limit of 1." in caplog.text
 
 
-def test_parse_article_data_missing_link_href(client, caplog):
-    """Test parsing an article where the link element is missing the href attribute."""
-    html = """
-    <article id="article_1">
-        <div class="article_title">Article 1</div>
-        <div class="title_meta"><a>example.com</a></div>
-    </article>
-    """
-    soup = BeautifulSoup(html, "html.parser")
-    with caplog.at_level(logging.WARNING):
-        articles = client._parse_article_data(soup, ["1"], 1)
-        assert len(articles) == 0
-        assert "Could not parse article with id 1" in caplog.text
-        assert "Link element or href not found" in caplog.text
-
-
 def test_get_articles_with_preview(client, session):
-    """Test that the article preview is scraped when requested."""
+    """Test that the article preview is included when requested."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, with_preview=True),
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(page_num=1, with_preview=True),
         )
         articles, _ = client.get_articles(page=1, add_article_preview=True)
         assert len(articles) == 2
@@ -669,9 +626,12 @@ def test_get_articles_with_preview(client, session):
 def test_get_articles_with_preview_missing(client, session):
     """Test that a missing article preview is handled gracefully."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, with_preview=True, missing_preview=True),
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(
+                page_num=1, with_preview=True, missing_preview=True
+            ),
         )
         articles, _ = client.get_articles(page=1, add_article_preview=True)
         assert len(articles) == 2
@@ -688,11 +648,12 @@ def test_get_articles_with_preview_missing(client, session):
 
 
 def test_get_articles_without_preview(client, session):
-    """Test that the article preview is not scraped when not requested."""
+    """Test that the article preview is not included when not requested."""
     with requests_mock.Mocker() as m:
+        setup_session_mock(m)
         m.get(
-            "https://www.instapaper.com/u/1",
-            text=get_mock_html(page_num=1, with_preview=True),
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(page_num=1, with_preview=True),
         )
         articles, _ = client.get_articles(page=1, add_article_preview=False)
         assert len(articles) == 2
@@ -703,3 +664,61 @@ def test_get_articles_without_preview(client, session):
 def test_url_safe_pattern_is_compiled_regex():
     """Test that URL_SAFE_PATTERN is a compiled regex object."""
     assert isinstance(InstapaperClient.URL_SAFE_PATTERN, re.Pattern)
+
+
+def test_form_key_is_cached(client, session):
+    """Test that form_key is fetched once and cached."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json=get_mock_session_json("my_form_key"),
+        )
+        m.get(
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(1),
+        )
+
+        client.get_articles(page=1)
+        assert m.call_count == 2  # session + bookmarks
+
+        client.get_articles(page=2)
+        # Second call should NOT fetch form_key again
+        assert m.call_count == 3
+        assert client._form_key == "my_form_key"
+
+
+def test_rich_metadata_included(client, session):
+    """Test that rich metadata fields from JSON are included in article dict."""
+    with requests_mock.Mocker() as m:
+        setup_session_mock(m)
+        m.get(
+            INSTAPAPER_BOOKMARKS_URL,
+            json={
+                "bookmarks": [
+                    {
+                        "id": 1,
+                        "url": "http://example.com/1",
+                        "title": "Article 1",
+                        "description": "Preview",
+                        "author": "Author Name",
+                        "time": 1785482560,
+                        "site_name": "Example",
+                        "liked": False,
+                        "is_archived": False,
+                        "tags": ["tag1"],
+                        "notes": [],
+                    }
+                ],
+                "page": 1,
+                "has_more": False,
+            },
+        )
+        articles, _ = client.get_articles(page=1, add_article_preview=True)
+
+        assert articles[0]["author"] == "Author Name"
+        assert articles[0]["time"] == 1785482560
+        assert articles[0]["site_name"] == "Example"
+        assert articles[0]["liked"] is False
+        assert articles[0]["is_archived"] is False
+        assert articles[0]["tags"] == ["tag1"]
+        assert articles[0]["notes"] == []
