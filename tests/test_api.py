@@ -699,7 +699,7 @@ def test_parse_bookmarks_exception_during_parsing(client, caplog):
         def get(self, key, default=None):
             if key == "id":
                 return "bad_bookmark"
-            raise RuntimeError("Simulated parsing error")
+            raise ValueError("Simulated data-shape error")
 
     bookmarks = [
         {

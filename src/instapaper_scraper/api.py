@@ -301,8 +301,8 @@ class InstapaperClient:
                         article[key] = bm[json_key]
 
                 articles.append(article)
-            except Exception as e:
-                logging.warning(self.MSG_PARSE_FAILED.format(id=bm.get("id"), e=e))
+            except (KeyError, TypeError, ValueError) as e:
+                logging.warning(self.MSG_PARSE_FAILED.format(id=article[KEY_ID], e=e))
                 continue
         return articles
 
