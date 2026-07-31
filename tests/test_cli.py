@@ -206,11 +206,11 @@ def test_cli_with_limit(mock_auth, mock_client, mock_save, monkeypatch):
 
 def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
     """Test that the CLI handles exceptions from the scraper client."""
-    from instapaper_scraper.exceptions import ScraperStructureChanged
+    from instapaper_scraper.exceptions import ApiResponseError
 
     mock_auth.return_value.login.return_value = True
-    mock_client.return_value.get_all_articles.side_effect = ScraperStructureChanged(
-        "HTML changed"
+    mock_client.return_value.get_all_articles.side_effect = ApiResponseError(
+        "API error"
     )
     monkeypatch.setattr("sys.argv", ["instapaper-scraper"])
 
@@ -220,7 +220,7 @@ def test_cli_scraper_exception(mock_auth, mock_client, monkeypatch, caplog):
                 cli.main()
 
     assert e.value.code == 1
-    assert "Stopping scraper due to an unrecoverable error: HTML changed" in caplog.text
+    assert "Stopping scraper due to an unrecoverable error: API error" in caplog.text
 
 
 @pytest.mark.parametrize("version_flag", ["--version", "-v"])

@@ -43,7 +43,7 @@ A powerful and reliable Python tool to automate the export of all your saved Ins
 
 ## ✨ Features
 
-- Scrapes all bookmarks from your Instapaper account.
+- Scrapes all bookmarks from your Instapaper account using the official JSON API.
 - Supports scraping from specific folders, including the special "Liked" and "Archive" collections.
 - Exports data to CSV, JSON, or a SQLite database.
 - Securely stores your session for future runs.
@@ -205,9 +205,9 @@ This adds a `instapaper_url` field to each article in the JSON output and a `ins
 The tool is designed with a modular architecture for reliability and maintainability.
 
 1. **Authentication**: The `InstapaperAuthenticator` handles secure login and session management.
-2. **Scraping**: The `InstapaperClient` iterates through all pages of your bookmarks, fetching the metadata for each article with robust error handling and retries. Shared constants, like the Instapaper base URL, are managed through `src/instapaper_scraper/constants.py`.
-3. **Data Collection**: All fetched articles are aggregated into a single list.
-4. **Export**: Finally, the collected data is written to a file in your chosen format (`.csv`, `.json`, or `.db`).
+2. **Scraping**: The `InstapaperClient` fetches bookmarks via the Instapaper JSON API (`/data/bookmarks`), automatically managing API authentication headers and iterating through all pages of your bookmarks with robust error handling and retries. Shared constants, including API URLs and section types, are managed through `src/instapaper_scraper/constants.py`. The migration from HTML scraping to the JSON API was required following Instapaper's complete website relaunch on July 28, 2026 ([announcement](https://blog.instapaper.com/2026/07/28/instapaper-10/)), which replaced the previous HTML-based interface with a modern single-page application.
+3. **Data Collection**: All fetched articles are aggregated into a single list, with rich metadata (author, time, site name, tags, etc.) included when available from the API.
+4. **Export**: Finally, the collected data is written to a file in your chosen format (`.csv`, `.json`, or `.db`). CSV output safely filters each row to only include the requested columns, preventing errors when optional fields are not included.
 
 ## 📊 Example Output
 
@@ -344,7 +344,7 @@ licensecheck --zero
 
 ## 📜 Disclaimer
 
-This script requires valid Instapaper credentials. Use it responsibly and in accordance with Instapaper’s Terms of Service.
+This script requires valid Instapaper credentials. Use it responsibly and in accordance with Instapaper's Terms of Service.
 
 ## 📄 License
 

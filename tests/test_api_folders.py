@@ -9,35 +9,61 @@ def mock_session():
     return MagicMock()
 
 
-def test_get_page_url_liked(mock_session):
-    """Test that _get_page_url constructs liked folder URLs correctly."""
+def test_build_request_params_liked(mock_session):
+    """Test that _build_request_params constructs liked folder params correctly."""
     client = InstapaperClient(mock_session)
 
-    # Test first page
-    url_page_1 = client._get_page_url(1, {"id": "liked"})
-    assert url_page_1 == "https://www.instapaper.com/liked"
+    params = client._build_request_params(1, {"id": "liked"})
+    assert params["section_type"] == "liked"
+    assert params["page"] == 1
+    assert params["sort"] == "newest"
+    assert "folder_id" not in params
 
-    # Test second page
-    url_page_2 = client._get_page_url(2, {"id": "liked"})
-    assert url_page_2 == "https://www.instapaper.com/liked/2"
+    params = client._build_request_params(2, {"id": "liked"})
+    assert params["section_type"] == "liked"
+    assert params["page"] == 2
 
-    # Test another page
-    url_page_10 = client._get_page_url(10, {"id": "liked"})
-    assert url_page_10 == "https://www.instapaper.com/liked/10"
+    params = client._build_request_params(10, {"id": "liked"})
+    assert params["section_type"] == "liked"
+    assert params["page"] == 10
 
 
-def test_get_page_url_archive(mock_session):
-    """Test that _get_page_url constructs archive folder URLs correctly."""
+def test_build_request_params_archive(mock_session):
+    """Test that _build_request_params constructs archive folder params correctly."""
     client = InstapaperClient(mock_session)
 
-    # Test first page
-    url_page_1 = client._get_page_url(1, {"id": "archive"})
-    assert url_page_1 == "https://www.instapaper.com/archive"
+    params = client._build_request_params(1, {"id": "archive"})
+    assert params["section_type"] == "archive"
+    assert params["page"] == 1
+    assert params["sort"] == "newest"
+    assert "folder_id" not in params
 
-    # Test second page
-    url_page_2 = client._get_page_url(2, {"id": "archive"})
-    assert url_page_2 == "https://www.instapaper.com/archive/2"
+    params = client._build_request_params(2, {"id": "archive"})
+    assert params["section_type"] == "archive"
+    assert params["page"] == 2
 
-    # Test another page
-    url_page_10 = client._get_page_url(10, {"id": "archive"})
-    assert url_page_10 == "https://www.instapaper.com/archive/10"
+    params = client._build_request_params(10, {"id": "archive"})
+    assert params["section_type"] == "archive"
+    assert params["page"] == 10
+
+
+def test_build_request_params_home(mock_session):
+    """Test that _build_request_params constructs home params correctly."""
+    client = InstapaperClient(mock_session)
+
+    params = client._build_request_params(1, None)
+    assert params["section_type"] == "home"
+    assert params["page"] == 1
+    assert params["sort"] == "newest"
+    assert "folder_id" not in params
+
+
+def test_build_request_params_custom_folder(mock_session):
+    """Test that _build_request_params constructs custom folder params correctly."""
+    client = InstapaperClient(mock_session)
+
+    params = client._build_request_params(1, {"id": "12345", "slug": "my-folder"})
+    assert params["section_type"] == "folder"
+    assert params["page"] == 1
+    assert params["sort"] == "newest"
+    assert params["folder_id"] == "12345"

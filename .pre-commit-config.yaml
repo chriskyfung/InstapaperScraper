@@ -19,5 +19,4 @@ repos:
         args: [--strict, --python-version=3.10]
         additional_dependencies: [
             "types-requests",
-            "types-beautifulsoup4"
         ]
