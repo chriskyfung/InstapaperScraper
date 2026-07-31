@@ -95,7 +95,9 @@ def save_to_csv(
 
         writer = csv.DictWriter(f, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
         writer.writeheader()
-        writer.writerows(data)
+        writer.writerows(
+            {k: v for k, v in row.items() if k in fieldnames} for row in data
+        )
 
     logging.info(LOG_SAVED_ARTICLES.format(count=len(data), filename=filename))
 
