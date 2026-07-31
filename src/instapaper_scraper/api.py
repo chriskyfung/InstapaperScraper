@@ -211,7 +211,10 @@ class InstapaperClient:
                     self.MSG_NETWORK_ERROR_REASON.format(error_type=type(e).__name__),
                 )
 
-            except (InstapaperAPIError, ValueError) as e:
+            except InstapaperAPIError as e:
+                logging.error(self.MSG_API_RESPONSE_ERROR.format(e=e))
+                raise
+            except ValueError as e:
                 logging.error(self.MSG_API_RESPONSE_ERROR.format(e=e))
                 raise ApiParseError(self.MSG_API_RESPONSE_ERROR.format(e=e))
             except Exception as e:
