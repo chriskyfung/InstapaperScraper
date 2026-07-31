@@ -65,6 +65,7 @@ class InstapaperClient:
     # Logging and error messages
     MSG_SCRAPING_PAGE = "Scraping page {page}..."
     MSG_BOOKMARK_ID_NOT_FOUND = "Bookmark {bookmark_id} missing {field}."
+    MSG_BOOKMARK_MISSING_ID = "Bookmark missing id, skipping."
     MSG_API_ERROR = "API error: {reason}"
     MSG_RATE_LIMITED_RETRY = (
         "Rate limited ({status_code}). Retrying after {wait_time} seconds."
@@ -244,8 +245,13 @@ class InstapaperClient:
         """Parses JSON bookmark objects into the standard article dict format."""
         articles: List[Dict[str, Any]] = []
         for bm in bookmarks:
+            bookmark_id = bm.get("id")
+            if not bookmark_id:
+                logging.warning(self.MSG_BOOKMARK_MISSING_ID)
+                continue
+
             try:
-                article: Dict[str, Any] = {KEY_ID: str(bm.get("id", ""))}
+                article: Dict[str, Any] = {KEY_ID: str(bookmark_id)}
 
                 title = bm.get("title")
                 if not title:
