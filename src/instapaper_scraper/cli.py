@@ -14,7 +14,7 @@ from . import __version__
 from .auth import InstapaperAuthenticator
 from .api import InstapaperClient
 from .output import save_articles
-from .exceptions import ScraperStructureChanged
+from .exceptions import ApiResponseError
 from .constants import CONFIG_DIR, SUPPORTED_FORMATS
 
 # --- Constants ---
@@ -252,7 +252,7 @@ def main() -> None:
             folder_info=folder_info,
             add_article_preview=final_add_article_preview,
         )
-    except ScraperStructureChanged as e:
+    except ApiResponseError as e:
         logging.error(f"Stopping scraper due to an unrecoverable error: {e}")
         sys.exit(1)
     except requests.exceptions.RequestException as e:

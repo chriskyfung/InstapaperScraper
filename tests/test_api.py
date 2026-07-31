@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import re
 
 from instapaper_scraper.api import InstapaperClient
-from instapaper_scraper.exceptions import ScraperStructureChanged
+from instapaper_scraper.exceptions import ApiResponseError
 from instapaper_scraper.constants import (
     INSTAPAPER_BOOKMARKS_URL,
     INSTAPAPER_USER_SESSION_URL,
@@ -473,8 +473,8 @@ def test_get_articles_all_retries_fail_timeout(client, session, monkeypatch):
         assert m.call_count == 3  # session + 2 bookmarks
 
 
-def test_get_articles_invalid_json_raises_structure_changed(client, session):
-    """Test that invalid JSON (missing bookmarks key) raises ."""
+def test_get_articles_invalid_json_raises_api_response_error(client, session):
+    """Test that invalid JSON (missing bookmarks key) raises ApiResponseError."""
     with requests_mock.Mocker() as m:
         setup_session_mock(m)
         m.get(
@@ -482,7 +482,7 @@ def test_get_articles_invalid_json_raises_structure_changed(client, session):
             json={"unexpected": "response"},
         )
 
-        with pytest.raises(ScraperStructureChanged):
+        with pytest.raises(ApiResponseError):
             client.get_articles(page=1)
 
 

@@ -4,10 +4,7 @@ class InstapaperAPIError(Exception):
     pass
 
 
-class ScraperStructureChanged(InstapaperAPIError):
-    """Custom exception for when the scraper detects an HTML structure change.
-
-    Kept for backward compatibility. New code should use InstapaperAPIError instead.
-    """
+class ApiResponseError(InstapaperAPIError):
+    """Raised when the Instapaper JSON API returns an unexpected response."""
 
     pass

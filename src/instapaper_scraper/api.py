@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple, Optional, Any
 
 import requests
 
-from .exceptions import InstapaperAPIError, ScraperStructureChanged
+from .exceptions import InstapaperAPIError, ApiResponseError
 from .constants import (
     INSTAPAPER_BOOKMARKS_URL,
     INSTAPAPER_USER_SESSION_URL,
@@ -75,7 +75,7 @@ class InstapaperClient:
         "Request failed with unrecoverable status code {status_code}."
     )
     MSG_NETWORK_ERROR_REASON = "Network error ({error_type})"
-    MSG_SCRAPING_FAILED_STRUCTURE_CHANGE = "API structure changed: {e}"
+    MSG_API_RESPONSE_ERROR = "API response error: {e}"
     MSG_ALL_RETRIES_FAILED = "All {max_retries} retries failed."
     MSG_SCRAPING_FAILED_UNKNOWN = (
         "Scraping failed after multiple retries for an unknown reason."
@@ -203,10 +203,8 @@ class InstapaperClient:
                 )
 
             except (InstapaperAPIError, ValueError) as e:
-                logging.error(self.MSG_SCRAPING_FAILED_STRUCTURE_CHANGE.format(e=e))
-                raise ScraperStructureChanged(
-                    self.MSG_SCRAPING_FAILED_STRUCTURE_CHANGE.format(e=e)
-                )
+                logging.error(self.MSG_API_RESPONSE_ERROR.format(e=e))
+                raise ApiResponseError(self.MSG_API_RESPONSE_ERROR.format(e=e))
             except Exception as e:
                 last_exception = e
                 self._wait_for_retry(
