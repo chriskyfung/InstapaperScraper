@@ -661,6 +661,94 @@ def test_get_articles_without_preview(client, session):
         assert "article_preview" not in articles[1]
 
 
+def test_fetch_form_key_already_cached(client, session):
+    """Test that _fetch_form_key returns immediately if form_key is already cached."""
+    client._form_key = "existing_key"
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL)
+        client._fetch_form_key()
+        assert m.call_count == 0  # No HTTP request made
+        assert client._form_key == "existing_key"
+
+
+def test_fetch_form_key_non_json_response(client, session):
+    """Test that _fetch_form_key handles non-JSON response gracefully."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            text="<html>not json</html>",
+        )
+        client._fetch_form_key()
+        assert client._form_key is None
+
+
+def test_fetch_form_key_network_error(client, session):
+    """Test that _fetch_form_key handles network errors gracefully."""
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL, exc=requests.exceptions.ConnectionError)
+        client._fetch_form_key()
+        assert client._form_key is None
+
+
+def test_parse_bookmarks_exception_during_parsing(client, caplog):
+    """Test that an exception during bookmark parsing is caught and the bookmark is skipped."""
+
+    # Create a bookmark that will cause an exception during parsing
+    # by making a custom dict that raises on .get() for non-id keys
+    class BadDict(dict):
+        def get(self, key, default=None):
+            if key == "id":
+                return "bad_bookmark"
+            raise RuntimeError("Simulated parsing error")
+
+    bookmarks = [
+        {
+            "id": 1,
+            "url": "http://example.com/1",
+            "title": "Article 1",
+        },
+        BadDict(),
+    ]
+
+    with caplog.at_level(logging.WARNING):
+        articles = client._parse_bookmarks(bookmarks, add_article_preview=False)
+
+    assert len(articles) == 1
+    assert articles[0]["id"] == "1"
+    assert "Could not parse bookmark" in caplog.text
+
+
+def test_get_articles_all_retries_fail_no_last_exception(
+    client, session, caplog, monkeypatch
+):
+    """Test that a generic Exception is raised when all retries fail and last_exception is None."""
+    mock_sleep = MagicMock()
+    monkeypatch.setattr("time.sleep", mock_sleep)
+
+    # Mock _parse_bookmarks to raise an exception that gets caught by the generic except Exception
+    def failing_parse(bookmarks, add_article_preview):
+        raise Exception("Simulated parse failure")
+
+    monkeypatch.setattr(client, "_parse_bookmarks", failing_parse)
+
+    with requests_mock.Mocker() as m:
+        setup_session_mock(m)
+        m.get(
+            INSTAPAPER_BOOKMARKS_URL,
+            json=get_mock_bookmarks_json(1),
+        )
+
+        client.max_retries = 2
+        client.backoff_factor = 0.01
+
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(Exception, match="Simulated parse failure"):
+                client.get_articles(page=1)
+            assert "All 2 retries failed." in caplog.text
+
+        assert m.call_count == 3  # session + 2 bookmarks
+
+
 def test_url_safe_pattern_is_compiled_regex():
     """Test that URL_SAFE_PATTERN is a compiled regex object."""
     assert isinstance(InstapaperClient.URL_SAFE_PATTERN, re.Pattern)
