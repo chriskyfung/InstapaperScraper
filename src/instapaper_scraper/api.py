@@ -1,28 +1,37 @@
 import os
+import re
 import logging
 import time
-import re
 from typing import List, Dict, Tuple, Optional, Any
 
 import requests
-from bs4 import BeautifulSoup
-from bs4.element import Tag
 
-from .exceptions import ScraperStructureChanged
+from .exceptions import InstapaperAPIError, ScraperStructureChanged
 from .constants import (
-    INSTAPAPER_BASE_URL,
-    INSTAPAPER_LIKED_URL,
-    INSTAPAPER_ARCHIVE_URL,
+    INSTAPAPER_BOOKMARKS_URL,
+    INSTAPAPER_USER_SESSION_URL,
+    SORT_NEWEST,
     KEY_ID,
     KEY_TITLE,
     KEY_URL,
     KEY_ARTICLE_PREVIEW,
+    KEY_DESCRIPTION,
+    KEY_TIME,
+    KEY_SITE_NAME,
+    KEY_AUTHOR,
+    KEY_LIKED,
+    KEY_IS_ARCHIVED,
+    KEY_TAGS,
+    KEY_NOTES,
+    SECTION_HOME,
+    SECTION_FOLDER,
+    SPECIAL_SECTIONS,
 )
 
 
 class InstapaperClient:
     """
-    A client for interacting with the Instapaper website to fetch articles.
+    A client for interacting with the Instapaper JSON API to fetch articles.
     """
 
     # Environment variable names
@@ -35,24 +44,6 @@ class InstapaperClient:
     DEFAULT_REQUEST_TIMEOUT = 30
     DEFAULT_PAGE_START = 1
 
-    # HTML parsing constants
-    HTML_PARSER = "html.parser"
-    ARTICLE_LIST_ID = "article_list"
-    ARTICLE_TAG = "article"
-    ARTICLE_ID_PREFIX = "article_"
-    PAGINATE_OLDER_CLASS = "paginate_older"
-    ARTICLE_TITLE_CLASS = "article_title"
-    TITLE_META_CLASS = "title_meta"
-    ARTICLE_PREVIEW_CLASS = "article_preview"
-
-    # URL paths
-    URL_PATH_USER = "/u/"
-    URL_PATH_FOLDER = "/u/folder/"
-    SPECIAL_FOLDERS = {
-        "liked": INSTAPAPER_LIKED_URL,
-        "archive": INSTAPAPER_ARCHIVE_URL,
-    }
-
     # URL validation
     URL_SAFE_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -61,15 +52,20 @@ class InstapaperClient:
     HTTP_SERVER_ERROR_START = 500
     HTTP_SERVER_ERROR_END = 600
 
+    # Request headers
+    HEADERS = {
+        "accept": "*/*",
+        "content-type": "application/json",
+        "x-requested-with": "XMLHttpRequest",
+    }
+
+    # Maps folder ids to special section types (liked, archive, etc.)
+    SPECIAL_SECTIONS = SPECIAL_SECTIONS
+
     # Logging and error messages
-    MSG_ARTICLE_LIST_NOT_FOUND = "Could not find article list ('#article_list')."
     MSG_SCRAPING_PAGE = "Scraping page {page}..."
-    MSG_ARTICLE_ELEMENT_NOT_FOUND = "Article element '{article_id_full}' not found."
-    MSG_TITLE_ELEMENT_NOT_FOUND = "Title element not found"
-    MSG_LINK_ELEMENT_NOT_FOUND = "Link element or href not found"
-    MSG_PARSE_ARTICLE_WARNING = (
-        "Could not parse article with id {article_id} on page {page}. Details: {e}"
-    )
+    MSG_BOOKMARK_ID_NOT_FOUND = "Bookmark {bookmark_id} missing {field}."
+    MSG_API_ERROR = "API error: {reason}"
     MSG_RATE_LIMITED_RETRY = (
         "Rate limited ({status_code}). Retrying after {wait_time} seconds."
     )
@@ -79,14 +75,14 @@ class InstapaperClient:
         "Request failed with unrecoverable status code {status_code}."
     )
     MSG_NETWORK_ERROR_REASON = "Network error ({error_type})"
-    MSG_SCRAPING_FAILED_STRUCTURE_CHANGE = (
-        "Scraping failed due to HTML structure change: {e}"
-    )
+    MSG_SCRAPING_FAILED_STRUCTURE_CHANGE = "API structure changed: {e}"
     MSG_ALL_RETRIES_FAILED = "All {max_retries} retries failed."
     MSG_SCRAPING_FAILED_UNKNOWN = (
         "Scraping failed after multiple retries for an unknown reason."
     )
     MSG_RETRY_ATTEMPT = "{reason} (attempt {attempt_num}/{max_retries}). Retrying in {sleep_time:.2f} seconds."
+    MSG_INVALID_JSON = "Invalid JSON response from Instapaper API."
+    MSG_SESSION_FETCH_FAILED = "Failed to fetch user session: {e}"
 
     def __init__(self, session: requests.Session):
         """
@@ -95,6 +91,8 @@ class InstapaperClient:
             session: A requests.Session object, presumably authenticated.
         """
         self.session = session
+        self._form_key: Optional[str] = None
+
         try:
             self.max_retries = int(
                 os.getenv(self.ENV_MAX_RETRIES, str(self.DEFAULT_MAX_RETRIES))
@@ -115,6 +113,34 @@ class InstapaperClient:
             )
             self.backoff_factor = self.DEFAULT_BACKOFF_FACTOR
 
+    def _get_headers(self) -> Dict[str, str]:
+        """Builds the headers dict for API requests, including x-form-key."""
+        headers = dict(self.HEADERS)
+        if self._form_key:
+            headers["x-form-key"] = self._form_key
+        return headers
+
+    def _fetch_form_key(self) -> None:
+        """Fetches the form_key from /data/user_session if not already cached."""
+        if self._form_key:
+            return
+
+        try:
+            response = self.session.get(
+                INSTAPAPER_USER_SESSION_URL,
+                timeout=self.DEFAULT_REQUEST_TIMEOUT,
+            )
+            if response.ok:
+                try:
+                    data = response.json()
+                    form_key = data.get("user", {}).get("form_key")
+                    if form_key:
+                        self._form_key = form_key
+                except ValueError:
+                    pass  # Not JSON; proceed without form_key
+        except requests.RequestException:
+            pass  # Best-effort; proceed without form_key
+
     def get_articles(
         self,
         page: int = DEFAULT_PAGE_START,
@@ -122,56 +148,42 @@ class InstapaperClient:
         add_article_preview: bool = False,
     ) -> Tuple[List[Dict[str, str]], bool]:
         """
-        Fetches a single page of articles and determines if there are more pages.
+        Fetches a single page of articles via the JSON API.
         Args:
             page: The page number to fetch.
             folder_info: A dictionary containing 'id' and 'slug' of the folder to fetch articles from.
-            add_article_preview: Whether to include the article preview.
+            add_article_preview: Whether to include the article preview (maps to JSON 'description').
         Returns:
             A tuple containing:
-            - A list of article data (dictionaries with id, title, url).
+            - A list of article data (dictionaries with id, title, url, and optional fields).
             - A boolean indicating if there is a next page.
         """
-        url = self._get_page_url(page, folder_info)
+        params = self._build_request_params(page, folder_info)
         last_exception: Optional[Exception] = None
 
         for attempt in range(self.max_retries):
             try:
-                response = self.session.get(url, timeout=self.DEFAULT_REQUEST_TIMEOUT)
+                if not self._form_key:
+                    self._fetch_form_key()
+
+                headers = self._get_headers()
+                response = self.session.get(
+                    INSTAPAPER_BOOKMARKS_URL,
+                    params=params,
+                    headers=headers,
+                    timeout=self.DEFAULT_REQUEST_TIMEOUT,
+                )
                 response.raise_for_status()
 
-                soup = BeautifulSoup(response.text, self.HTML_PARSER)
+                data = response.json()
+                if "bookmarks" not in data:
+                    raise InstapaperAPIError(self.MSG_INVALID_JSON)
 
-                article_list = soup.find(id=self.ARTICLE_LIST_ID)
-                if not isinstance(article_list, Tag):
-                    raise ScraperStructureChanged(self.MSG_ARTICLE_LIST_NOT_FOUND)
+                bookmarks = data.get("bookmarks", [])
+                has_more = data.get("has_more", False)
 
-                articles = article_list.find_all(self.ARTICLE_TAG)
-                article_ids = []
-                for article in articles:
-                    if not isinstance(article, Tag):
-                        continue
-                    article_id_val = article.get(KEY_ID)
-
-                    # Ensure article_id_val is a string before calling replace
-                    # If it's a list, take the first element. This is a pragmatic
-                    # approach since 'id' attributes should ideally be unique strings.
-                    if isinstance(article_id_val, list):
-                        article_id_val = article_id_val[0] if article_id_val else None
-
-                    if isinstance(article_id_val, str) and article_id_val.startswith(
-                        self.ARTICLE_ID_PREFIX
-                    ):
-                        article_ids.append(
-                            article_id_val.replace(self.ARTICLE_ID_PREFIX, "")
-                        )
-
-                data = self._parse_article_data(
-                    soup, article_ids, page, add_article_preview
-                )
-                has_more = soup.find(class_=self.PAGINATE_OLDER_CLASS) is not None
-
-                return data, has_more
+                articles = self._parse_bookmarks(bookmarks, add_article_preview)
+                return articles, has_more
 
             except requests.exceptions.HTTPError as e:
                 last_exception = e
@@ -190,9 +202,11 @@ class InstapaperClient:
                     self.MSG_NETWORK_ERROR_REASON.format(error_type=type(e).__name__),
                 )
 
-            except ScraperStructureChanged as e:
+            except (InstapaperAPIError, ValueError) as e:
                 logging.error(self.MSG_SCRAPING_FAILED_STRUCTURE_CHANGE.format(e=e))
-                raise e
+                raise ScraperStructureChanged(
+                    self.MSG_SCRAPING_FAILED_STRUCTURE_CHANGE.format(e=e)
+                )
             except Exception as e:
                 last_exception = e
                 self._wait_for_retry(
@@ -204,6 +218,80 @@ class InstapaperClient:
         if last_exception:
             raise last_exception
         raise Exception(self.MSG_SCRAPING_FAILED_UNKNOWN)
+
+    def _build_request_params(
+        self, page: int, folder_info: Optional[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """Builds query parameters for the bookmarks API request."""
+        folder_id = (folder_info or {}).get("id")
+        section_type = (
+            self.SPECIAL_SECTIONS.get(folder_id)
+            if folder_id in self.SPECIAL_SECTIONS
+            else (SECTION_FOLDER if folder_id else SECTION_HOME)
+        )
+
+        params: Dict[str, Any] = {
+            "section_type": section_type,
+            "page": page,
+            "sort": SORT_NEWEST,
+        }
+        if section_type == SECTION_FOLDER and folder_id:
+            params["folder_id"] = folder_id
+        return params
+
+    def _parse_bookmarks(
+        self, bookmarks: List[Dict[str, Any]], add_article_preview: bool
+    ) -> List[Dict[str, Any]]:
+        """Parses JSON bookmark objects into the standard article dict format."""
+        articles: List[Dict[str, Any]] = []
+        for bm in bookmarks:
+            try:
+                article: Dict[str, Any] = {KEY_ID: str(bm.get("id", ""))}
+
+                title = bm.get("title")
+                if not title:
+                    logging.warning(
+                        self.MSG_BOOKMARK_ID_NOT_FOUND.format(
+                            bookmark_id=article[KEY_ID], field="title"
+                        )
+                    )
+                    article[KEY_TITLE] = ""
+                else:
+                    article[KEY_TITLE] = title
+
+                url = bm.get("url")
+                if not url:
+                    logging.warning(
+                        self.MSG_BOOKMARK_ID_NOT_FOUND.format(
+                            bookmark_id=article[KEY_ID], field="url"
+                        )
+                    )
+                    article[KEY_URL] = ""
+                else:
+                    article[KEY_URL] = url
+
+                if add_article_preview:
+                    article[KEY_ARTICLE_PREVIEW] = bm.get(KEY_DESCRIPTION, "")
+
+                for key, json_key in [
+                    (KEY_AUTHOR, "author"),
+                    (KEY_TIME, "time"),
+                    (KEY_SITE_NAME, "site_name"),
+                    (KEY_LIKED, "liked"),
+                    (KEY_IS_ARCHIVED, "is_archived"),
+                    (KEY_TAGS, "tags"),
+                    (KEY_NOTES, "notes"),
+                ]:
+                    if json_key in bm:
+                        article[key] = bm[json_key]
+
+                articles.append(article)
+            except Exception as e:
+                logging.warning(
+                    "Could not parse bookmark {id}: {e}".format(id=bm.get("id"), e=e)
+                )
+                continue
+        return articles
 
     def get_all_articles(
         self,
@@ -237,93 +325,12 @@ class InstapaperClient:
             page += 1
         return all_articles
 
-    def _get_page_url(
-        self, page: int, folder_info: Optional[Dict[str, str]] = None
-    ) -> str:
-        """Constructs the URL for the given page, considering folder mode."""
-        folder_id = folder_info.get("id") if folder_info else None
-        slug = folder_info.get("slug") if folder_info else None
-
-        # Validate folder_id and slug for URL-safe characters
-        # Allowed characters: alphanumeric, hyphen, underscore
-        if folder_id and not self.URL_SAFE_PATTERN.match(str(folder_id)):
-            raise ValueError(f"Invalid characters in folder_id: {folder_id}")
-        if slug and not self.URL_SAFE_PATTERN.match(str(slug)):
-            raise ValueError(f"Invalid characters in slug: {slug}")
-
-        if folder_id in self.SPECIAL_FOLDERS:
-            base_url = self.SPECIAL_FOLDERS[folder_id]
-            return base_url if page == 1 else f"{base_url}/{page}"
-
-        if folder_info and folder_id and folder_info.get("slug"):
-            return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_FOLDER}{folder_id}/{folder_info['slug']}/{page}"
-        return f"{INSTAPAPER_BASE_URL}{self.URL_PATH_USER}{page}"
-
-    def _parse_article_data(
-        self,
-        soup: BeautifulSoup,
-        article_ids: List[str],
-        page: int,
-        add_article_preview: bool = False,
-    ) -> List[Dict[str, Any]]:
-        """Parses the raw HTML to extract structured data for each article."""
-        data = []
-        for article_id in article_ids:
-            article_id_full = f"{self.ARTICLE_ID_PREFIX}{article_id}"
-            article_element = soup.find(id=article_id_full)
-            try:
-                if not isinstance(article_element, Tag):
-                    raise AttributeError(
-                        self.MSG_ARTICLE_ELEMENT_NOT_FOUND.format(
-                            article_id_full=article_id_full
-                        )
-                    )
-
-                title_element = article_element.find(class_=self.ARTICLE_TITLE_CLASS)
-                if not isinstance(title_element, Tag):
-                    raise AttributeError(self.MSG_TITLE_ELEMENT_NOT_FOUND)
-                title = title_element.get_text().strip()
-
-                meta_element = article_element.find(class_=self.TITLE_META_CLASS)
-                if not isinstance(meta_element, Tag):
-                    raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
-
-                link_element = meta_element.find("a")
-                if (
-                    not isinstance(link_element, Tag)
-                    or "href" not in link_element.attrs
-                ):
-                    raise AttributeError(self.MSG_LINK_ELEMENT_NOT_FOUND)
-                link = link_element["href"]
-
-                article_data = {KEY_ID: article_id, KEY_TITLE: title, KEY_URL: link}
-
-                if add_article_preview:
-                    preview_element = article_element.find(
-                        class_=self.ARTICLE_PREVIEW_CLASS
-                    )
-                    article_data[KEY_ARTICLE_PREVIEW] = (
-                        preview_element.get_text().strip()
-                        if isinstance(preview_element, Tag)
-                        else ""
-                    )
-
-                data.append(article_data)
-            except AttributeError as e:
-                logging.warning(
-                    self.MSG_PARSE_ARTICLE_WARNING.format(
-                        article_id=article_id, page=page, e=e
-                    )
-                )
-                continue
-        return data
-
     def _handle_http_error(
         self, e: requests.exceptions.HTTPError, attempt: int
     ) -> bool:
         """Handles HTTP errors, returns True if a retry should be attempted."""
         status_code = e.response.status_code
-        if status_code == self.HTTP_TOO_MANY_REQUESTS:  # Too Many Requests
+        if status_code == self.HTTP_TOO_MANY_REQUESTS:
             wait_time_str = e.response.headers.get("Retry-After")
             try:
                 wait_time = int(wait_time_str) if wait_time_str else 0
@@ -336,14 +343,14 @@ class InstapaperClient:
                     time.sleep(wait_time)
                     return True
             except (ValueError, TypeError):
-                pass  # Fallback to exponential backoff
+                pass
+
             self._wait_for_retry(
-                attempt, self.MSG_RATE_LIMITED_REASON.format(status_code=status_code)
+                attempt,
+                self.MSG_RATE_LIMITED_REASON.format(status_code=status_code),
             )
             return True
-        elif (
-            self.HTTP_SERVER_ERROR_START <= status_code < self.HTTP_SERVER_ERROR_END
-        ):  # Server-side errors
+        elif self.HTTP_SERVER_ERROR_START <= status_code < self.HTTP_SERVER_ERROR_END:
             self._wait_for_retry(
                 attempt,
                 self.MSG_REQUEST_FAILED_STATUS_REASON.format(status_code=status_code),
@@ -353,8 +360,8 @@ class InstapaperClient:
             logging.error(
                 f"Error 404: Not Found. This might indicate an invalid folder ID or slug. URL: {e.response.url}"
             )
-            return False  # Do not retry, unrecoverable
-        else:  # Other client-side errors (4xx) are not worth retrying
+            return False
+        else:
             logging.error(
                 self.MSG_REQUEST_FAILED_UNRECOVERABLE.format(status_code=status_code)
             )
