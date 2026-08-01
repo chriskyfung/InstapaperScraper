@@ -28,7 +28,7 @@
             "name": "Debug API",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/.vscode/debug_api.py",
+            "program": "${workspaceFolder}/scripts/debug_api.py",
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {

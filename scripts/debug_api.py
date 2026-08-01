@@ -12,6 +12,7 @@ To debug a specific method:
   2. Select "Debug API" from the VS Code Run panel and press F5.
   3. Step through the mocked call flow.
 """
+
 import requests
 import requests_mock
 
@@ -76,9 +77,7 @@ def main() -> None:
         m.get(INSTAPAPER_USER_SESSION_URL, json=mock_session_response)
         m.get(INSTAPAPER_BOOKMARKS_URL, json=mock_bookmarks_response)
 
-        articles, has_more = client.get_articles(
-            page=1, add_article_preview=True
-        )
+        articles, has_more = client.get_articles(page=1, add_article_preview=True)
 
         print(f"Fetched {len(articles)} articles. has_more: {has_more}")
         print()
