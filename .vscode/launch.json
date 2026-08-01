@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug CLI",
+            "name": "Debug CLI", // Set a breakpoint in src/instapaper_scraper/api.py before launching
             "type": "debugpy",
             "request": "launch",
             "module": "instapaper_scraper.cli",
