@@ -1,8 +1,10 @@
-import pytest
 import logging
-import requests
-from unittest.mock import MagicMock, patch
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+import requests
+
 from instapaper_scraper import cli
 
 
@@ -42,9 +44,8 @@ def test_cli_successful_run(mock_auth, mock_client, mock_save, monkeypatch, capl
         "instapaper_scraper.cli.CONFIG_FILENAME", "non_existent_config.toml"
     )
 
-    with caplog.at_level(logging.INFO):
-        with patch("builtins.input", return_value="0"):
-            cli.main()
+    with caplog.at_level(logging.INFO), patch("builtins.input", return_value="0"):
+        cli.main()
 
     mock_auth.assert_called_once()
     mock_auth.return_value.login.assert_called_once()
@@ -355,9 +356,8 @@ def test_cli_folder_argument_no_config_exits(
     monkeypatch.setattr("instapaper_scraper.cli.load_config", mock_load_config)
     monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--folder", "some-folder"])
 
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(SystemExit) as e:
-            cli.main()
+    with caplog.at_level(logging.ERROR), pytest.raises(SystemExit) as e:
+        cli.main()
 
     assert e.value.code == 1
     assert (

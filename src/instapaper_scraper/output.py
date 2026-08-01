@@ -1,14 +1,14 @@
-import os
 import logging
+import os
 import tempfile
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .constants import (
     INSTAPAPER_READ_URL,
+    KEY_ARTICLE_PREVIEW,
     KEY_ID,
     KEY_TITLE,
     KEY_URL,
-    KEY_ARTICLE_PREVIEW,
 )
 
 # Constants for file operations
@@ -76,7 +76,7 @@ def get_sqlite_insert_sql(
 
 
 def save_to_csv(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     filename: str,
     add_instapaper_url: bool = False,
     add_article_preview: bool = False,
@@ -103,7 +103,7 @@ def save_to_csv(
 
 
 def save_to_json(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     filename: str,
 ) -> None:
     """Saves a list of articles to a JSON file."""
@@ -116,7 +116,7 @@ def save_to_json(
 
 
 def save_to_sqlite(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     db_name: str,
     add_instapaper_url: bool = False,
     add_article_preview: bool = False,
@@ -203,7 +203,7 @@ def _correct_ext(filename: str, format: str) -> str:
 
 
 def save_articles(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     format: str,
     filename: str,
     add_instapaper_url: bool = False,

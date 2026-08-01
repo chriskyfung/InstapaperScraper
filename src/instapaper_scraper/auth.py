@@ -1,18 +1,17 @@
-import os
 import getpass
 import logging
+import os
 import stat
 from pathlib import Path
-from typing import Union, Optional
 
-from cryptography.fernet import Fernet
 import requests
+from cryptography.fernet import Fernet
 
 from .constants import INSTAPAPER_BASE_URL
 
 
 # --- Encryption Helper ---
-def get_encryption_key(key_file: Union[str, Path]) -> bytes:
+def get_encryption_key(key_file: str | Path) -> bytes:
     """
     Loads the encryption key from a file or generates a new one.
     Sets strict file permissions for the key file.
@@ -65,10 +64,10 @@ class InstapaperAuthenticator:
     def __init__(
         self,
         session: requests.Session,
-        session_file: Union[str, Path],
-        key_file: Union[str, Path],
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        session_file: str | Path,
+        key_file: str | Path,
+        username: str | None = None,
+        password: str | None = None,
     ):
         self.session = session
         self.session_file = Path(session_file)
