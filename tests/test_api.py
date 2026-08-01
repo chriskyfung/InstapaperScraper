@@ -1,16 +1,17 @@
+import logging
+import re
+from unittest.mock import MagicMock, patch
+
 import pytest
 import requests
 import requests_mock
-import logging
-from unittest.mock import MagicMock, patch
-import re
 
 from instapaper_scraper.api import InstapaperClient
-from instapaper_scraper.exceptions import InstapaperAPIError
 from instapaper_scraper.constants import (
     INSTAPAPER_BOOKMARKS_URL,
     INSTAPAPER_USER_SESSION_URL,
 )
+from instapaper_scraper.exceptions import InstapaperAPIError
 
 
 @pytest.fixture
@@ -582,19 +583,18 @@ def test_http_error_429_with_invalid_retry_after(client, session, monkeypatch, c
 
 def test_get_all_articles_reaches_limit(client, session, caplog):
     """Test that get_all_articles stops when the page limit is reached."""
-    with caplog.at_level(logging.INFO):
-        with requests_mock.Mocker() as m:
-            setup_session_mock(m)
-            m.get(
-                INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=1&sort=newest",
-                json=get_mock_bookmarks_json(page_num=1, has_more=True),
-            )
-            m.get(
-                INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=2&sort=newest",
-                json=get_mock_bookmarks_json(page_num=2, has_more=True),
-            )
-            client.get_all_articles(limit=1)
-            assert "Reached page limit of 1." in caplog.text
+    with caplog.at_level(logging.INFO), requests_mock.Mocker() as m:
+        setup_session_mock(m)
+        m.get(
+            INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=1&sort=newest",
+            json=get_mock_bookmarks_json(page_num=1, has_more=True),
+        )
+        m.get(
+            INSTAPAPER_BOOKMARKS_URL + "?section_type=home&page=2&sort=newest",
+            json=get_mock_bookmarks_json(page_num=2, has_more=True),
+        )
+        client.get_all_articles(limit=1)
+        assert "Reached page limit of 1." in caplog.text
 
 
 def test_get_articles_with_preview(client, session):

@@ -1,7 +1,9 @@
-from unittest.mock import patch
-from pathlib import Path
 import importlib
+from pathlib import Path
+from unittest.mock import patch
+
 from cryptography.fernet import Fernet
+
 from instapaper_scraper import cli, constants
 
 

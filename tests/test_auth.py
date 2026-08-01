@@ -1,10 +1,11 @@
-import pytest
-import stat
-import requests
-import requests_mock
 import logging
+import stat
 from unittest.mock import MagicMock
 from urllib.parse import parse_qs
+
+import pytest
+import requests
+import requests_mock
 
 from instapaper_scraper.auth import (
     InstapaperAuthenticator,

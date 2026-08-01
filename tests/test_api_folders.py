@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
+
 import pytest
+
 from instapaper_scraper.api import InstapaperClient
 
 

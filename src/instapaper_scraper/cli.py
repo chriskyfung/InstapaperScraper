@@ -1,9 +1,10 @@
-import sys
-import logging
 import argparse
-import requests
+import logging
+import sys
 from pathlib import Path
-from typing import Union, List, Dict, Any, Optional, cast
+from typing import Any, cast
+
+import requests
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -11,11 +12,11 @@ else:
     import tomli as tomllib
 
 from . import __version__
-from .auth import InstapaperAuthenticator
 from .api import InstapaperClient
-from .output import save_articles
-from .exceptions import InstapaperAPIError
+from .auth import InstapaperAuthenticator
 from .constants import CONFIG_DIR, SUPPORTED_FORMATS
+from .exceptions import InstapaperAPIError
+from .output import save_articles
 
 # --- Constants ---
 CONFIG_FILENAME = "config.toml"
@@ -39,7 +40,7 @@ def _resolve_path(
     return user_dir_filename
 
 
-def load_config(config_path_str: Union[str, None] = None) -> Optional[Dict[str, Any]]:
+def load_config(config_path_str: str | None = None) -> dict[str, Any] | None:
     """
     Loads configuration from a TOML file.
     It checks the provided path, then config.toml in the project root,
@@ -50,7 +51,7 @@ def load_config(config_path_str: Union[str, None] = None) -> Optional[Dict[str, 
         CONFIG_DIR / CONFIG_FILENAME,
     ]
 
-    paths_to_check: List[Path] = []
+    paths_to_check: list[Path] = []
     if config_path_str:
         paths_to_check.insert(0, Path(config_path_str).expanduser())
     paths_to_check.extend(default_paths)
@@ -60,7 +61,7 @@ def load_config(config_path_str: Union[str, None] = None) -> Optional[Dict[str, 
             try:
                 with open(path, "rb") as f:
                     logging.info(f"Loading configuration from {path}")
-                    return cast(Dict[str, Any], tomllib.load(f))
+                    return cast(dict[str, Any], tomllib.load(f))
             except tomllib.TOMLDecodeError as e:
                 logging.error(f"Error decoding TOML file at {path}: {e}")
                 return None
@@ -173,7 +174,7 @@ def main() -> None:
                 selected_folder = {"id": args.folder}
     elif folders:
         print("Available folders:")
-        folder_choices: List[Dict[str, Any]] = [
+        folder_choices: list[dict[str, Any]] = [
             {"display": "__Home__ (scrape unfiled articles)", "info": None},
             {"display": "__Liked__ (scrape liked articles)", "info": {"id": "liked"}},
             {
@@ -190,7 +191,7 @@ def main() -> None:
 
         try:
             choice_str = input(
-                f"Select a folder (enter a number 0-{len(folder_choices)-1})[default: 0]: "
+                f"Select a folder (enter a number 0-{len(folder_choices) - 1})[default: 0]: "
             )
             choice_idx = int(choice_str) if choice_str else 0
             if 0 <= choice_idx < len(folder_choices):

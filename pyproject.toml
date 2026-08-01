@@ -32,7 +32,7 @@ dependencies = [
     "requests>=2.33.1,<2.35.0",
     "typing_extensions>=4.15,<4.17",
     "urllib3>=2.6.3,<2.8.0",
-    "tomli~=2.0.1; python_version < '3.11'"
+    "tomli~=2.0.1; python_version < '3.11'",
 ]
 
 [project.urls]
@@ -51,6 +51,21 @@ pythonpath = "src"
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
+ignore = [
+    "BLE001",  # Blind exception catch (Bandit): prevents catching overly broad exceptions
+    "LOG015",  # Lazy % formatting (Logging): enforces lazy % formatting for better performance
+    "PLC0414", # Future annotations (Pylint-compat): suggests using __future__ import annotations
+    "RUF012",  # Mutable class attributes (Ruff): requires mutable class attributes to be annotated
+    "RUF059",  # Unused self parameter (Ruff): detects methods with unused self parameter
+    "S102",    # Assert usage (Bandit): flags use of assert statements removed with -O flag
+    "SIM102",  # Nested if statements (Simplify): suggests merging collapsible nested ifs
+    "SIM117",  # Multiple with statements (Simplify): suggests merging multiple with statements
+    "TC004",   # Try block issues (Tryceratops): flags common issues in try blocks
+    "TRY002",  # Create your own exception (Tryceratops): suggests creating custom exceptions
+    "TRY201",  # sys.exit usage (Tryceratops): flags use of sys.exit() in library code
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -77,5 +92,5 @@ dev = [
     "twine~=6.2.0",
     "mypy>=1.20.1,<2.2.0",
     "pre-commit>=4.5.1,<4.7.0",
-    "licensecheck"
+    "licensecheck",
 ]

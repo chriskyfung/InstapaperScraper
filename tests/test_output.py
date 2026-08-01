@@ -1,24 +1,25 @@
-import os
-import tempfile
-import pytest
-import json
-import sqlite3
-import logging
-import io
 import csv
-from unittest.mock import patch, MagicMock, PropertyMock
+import io
+import json
+import logging
+import os
+import sqlite3
+import tempfile
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
+
+from instapaper_scraper.constants import INSTAPAPER_READ_URL
 from instapaper_scraper.output import (
     _correct_ext,
-    save_to_csv,
-    save_to_json,
-    save_to_sqlite,
-    save_articles,
     _validate_output_path,
     get_sqlite_create_table_sql,
     get_sqlite_insert_sql,
+    save_articles,
+    save_to_csv,
+    save_to_json,
+    save_to_sqlite,
 )
-from instapaper_scraper.constants import INSTAPAPER_READ_URL
 
 
 @pytest.fixture

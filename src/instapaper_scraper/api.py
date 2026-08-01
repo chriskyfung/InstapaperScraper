@@ -1,32 +1,32 @@
+import logging
 import os
 import re
-import logging
 import time
-from typing import List, Dict, Tuple, Optional, Any
+from typing import Any
 
 import requests
 
-from .exceptions import InstapaperAPIError, ApiParseError
 from .constants import (
     INSTAPAPER_BOOKMARKS_URL,
     INSTAPAPER_USER_SESSION_URL,
-    SORT_NEWEST,
+    KEY_ARTICLE_PREVIEW,
+    KEY_AUTHOR,
+    KEY_DESCRIPTION,
     KEY_ID,
+    KEY_IS_ARCHIVED,
+    KEY_LIKED,
+    KEY_NOTES,
+    KEY_SITE_NAME,
+    KEY_TAGS,
+    KEY_TIME,
     KEY_TITLE,
     KEY_URL,
-    KEY_ARTICLE_PREVIEW,
-    KEY_DESCRIPTION,
-    KEY_TIME,
-    KEY_SITE_NAME,
-    KEY_AUTHOR,
-    KEY_LIKED,
-    KEY_IS_ARCHIVED,
-    KEY_TAGS,
-    KEY_NOTES,
-    SECTION_HOME,
     SECTION_FOLDER,
+    SECTION_HOME,
+    SORT_NEWEST,
     SPECIAL_SECTIONS,
 )
+from .exceptions import ApiParseError, InstapaperAPIError
 
 
 class InstapaperClient:
@@ -94,7 +94,7 @@ class InstapaperClient:
             session: A requests.Session object, presumably authenticated.
         """
         self.session = session
-        self._form_key: Optional[str] = None
+        self._form_key: str | None = None
 
         try:
             self.max_retries = int(
@@ -116,7 +116,7 @@ class InstapaperClient:
             )
             self.backoff_factor = self.DEFAULT_BACKOFF_FACTOR
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """Builds the headers dict for API requests, including x-form-key."""
         headers = dict(self.HEADERS)
         if self._form_key:
@@ -153,9 +153,9 @@ class InstapaperClient:
     def get_articles(
         self,
         page: int = DEFAULT_PAGE_START,
-        folder_info: Optional[Dict[str, str]] = None,
+        folder_info: dict[str, str] | None = None,
         add_article_preview: bool = False,
-    ) -> Tuple[List[Dict[str, str]], bool]:
+    ) -> tuple[list[dict[str, str]], bool]:
         """
         Fetches a single page of articles via the JSON API.
         Args:
@@ -168,7 +168,7 @@ class InstapaperClient:
             - A boolean indicating if there is a next page.
         """
         params = self._build_request_params(page, folder_info)
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
 
         for attempt in range(self.max_retries):
             try:
@@ -230,8 +230,8 @@ class InstapaperClient:
         raise Exception(self.MSG_SCRAPING_FAILED_UNKNOWN)
 
     def _build_request_params(
-        self, page: int, folder_info: Optional[Dict[str, str]]
-    ) -> Dict[str, Any]:
+        self, page: int, folder_info: dict[str, str] | None
+    ) -> dict[str, Any]:
         """Builds query parameters for the bookmarks API request."""
         folder_id = (folder_info or {}).get("id")
         section_type = (
@@ -240,7 +240,7 @@ class InstapaperClient:
             else (SECTION_FOLDER if folder_id else SECTION_HOME)
         )
 
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "section_type": section_type,
             "page": page,
             "sort": SORT_NEWEST,
@@ -250,10 +250,10 @@ class InstapaperClient:
         return params
 
     def _parse_bookmarks(
-        self, bookmarks: List[Dict[str, Any]], add_article_preview: bool
-    ) -> List[Dict[str, Any]]:
+        self, bookmarks: list[dict[str, Any]], add_article_preview: bool
+    ) -> list[dict[str, Any]]:
         """Parses JSON bookmark objects into the standard article dict format."""
-        articles: List[Dict[str, Any]] = []
+        articles: list[dict[str, Any]] = []
         for bm in bookmarks:
             bookmark_id = bm.get("id")
             if not bookmark_id:
@@ -261,7 +261,7 @@ class InstapaperClient:
                 continue
 
             try:
-                article: Dict[str, Any] = {KEY_ID: str(bookmark_id)}
+                article: dict[str, Any] = {KEY_ID: str(bookmark_id)}
 
                 title = bm.get("title")
                 if not title:
@@ -308,10 +308,10 @@ class InstapaperClient:
 
     def get_all_articles(
         self,
-        limit: Optional[int] = None,
-        folder_info: Optional[Dict[str, str]] = None,
+        limit: int | None = None,
+        folder_info: dict[str, str] | None = None,
         add_article_preview: bool = False,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         Iterates through pages and fetches articles up to a specified limit.
         Args:
