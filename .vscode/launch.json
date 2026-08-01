@@ -8,6 +8,7 @@
             "module": "instapaper_scraper.cli",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src"
             }
@@ -19,6 +20,7 @@
             "module": "instapaper_scraper.cli",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
             "args": ["--version"],
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src"
@@ -31,6 +33,7 @@
             "program": "${workspaceFolder}/scripts/debug_api.py",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src"
             }
@@ -42,6 +45,7 @@
             "module": "pytest",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
             "args": [
                 "tests/test_api.py",
                 "-v",
@@ -59,6 +63,7 @@
             "module": "pytest",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
             "args": [
                 "tests/test_cli.py",
                 "-v",
@@ -76,6 +81,7 @@
             "module": "pytest",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "cwd": "${workspaceFolder}",
             "args": [
                 "-v",
                 "--no-header"
