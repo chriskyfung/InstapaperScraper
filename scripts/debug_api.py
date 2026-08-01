@@ -50,20 +50,20 @@ def main() -> None:
         "bookmarks": [
             {
                 "id": 1,
-                "url": "http://example.com/1",
+                "url": "https://example.com/1",
                 "title": "Debug Article 1",
                 "description": "A preview of article 1.",
                 "author": "Author 1",
-                "time": 1785482560,
+                "time": 1785482560,  # ~2026-07-30 — a recent-ish bookmark for realistic mock data`
                 "site_name": "Example",
                 "liked": False,
                 "is_archived": False,
                 "tags": ["tag1"],
                 "notes": [],
             },
-            {
+            {  # Intentionally sparse — tests _parse_bookmarks handling of missing optional fields
                 "id": 2,
-                "url": "http://example.com/2",
+                "url": "https://example.com/2",
                 "title": "Debug Article 2",
                 "description": "",
             },
@@ -77,7 +77,11 @@ def main() -> None:
         m.get(INSTAPAPER_USER_SESSION_URL, json=mock_session_response)
         m.get(INSTAPAPER_BOOKMARKS_URL, json=mock_bookmarks_response)
 
-        articles, has_more = client.get_articles(page=1, add_article_preview=True)
+        try:
+            articles, has_more = client.get_articles(page=1, add_article_preview=True)
+        except Exception as exc:
+            print(f"[ERROR] get_articles raised: {exc!r}")
+            raise
 
         print(f"Fetched {len(articles)} articles. has_more: {has_more}")
         print()
