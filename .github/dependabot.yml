@@ -26,7 +26,7 @@ updates:
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: "ci(actions)"
+      prefix: "chore(actions)"
     groups:
       all-actions-dependencies:
         patterns:
