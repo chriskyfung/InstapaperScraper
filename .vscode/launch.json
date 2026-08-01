@@ -7,7 +7,7 @@
             "request": "launch",
             "module": "instapaper_scraper.cli",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src"
@@ -19,7 +19,7 @@
             "request": "launch",
             "module": "instapaper_scraper.cli",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "cwd": "${workspaceFolder}",
             "args": ["--version"],
             "env": {
@@ -62,7 +62,7 @@
             "request": "launch",
             "module": "pytest",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "cwd": "${workspaceFolder}",
             "args": [
                 "tests/test_cli.py",
@@ -80,7 +80,7 @@
             "request": "launch",
             "module": "pytest",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "cwd": "${workspaceFolder}",
             "args": [
                 "-v",
