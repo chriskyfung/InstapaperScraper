@@ -334,6 +334,26 @@ def test_login_csrf_preflight_failure(authenticator, session, caplog):
         )
         with caplog.at_level(logging.ERROR):
             assert authenticator._login_with_credentials() is False
-            assert "Could not fetch login page for CSRF token" in caplog.text
+            assert (
+                "Could not fetch login page for CSRF token (network error)"
+                in caplog.text
+            )
         # POST must not fire if the preflight failed.
+        assert all(r.method == "GET" for r in m.request_history)
+
+
+def test_login_csrf_preflight_403(authenticator, session, caplog):
+    """Test _login_with_credentials returns False when preflight GET returns 403."""
+    authenticator.username = "user"
+    authenticator.password = "pass"
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://www.instapaper.com/user/login",
+            status_code=403,
+            text="Forbidden",
+        )
+        with caplog.at_level(logging.ERROR):
+            assert authenticator._login_with_credentials() is False
+            assert "server returned 403 Forbidden" in caplog.text
+        # POST must not fire if the preflight got 403.
         assert all(r.method == "GET" for r in m.request_history)
