@@ -290,6 +290,39 @@ def test_login_with_credentials_failure(authenticator, session, caplog):
             assert "Login failed. Please check your credentials." in caplog.text
 
 
+def test_login_without_xsrf_cookie_still_posts(session, session_file, key_file):
+    """If the preflight GET does not yield an _xsrf cookie, the POST is still
+    attempted (without echoing _xsrf) — covers the falsy branch of the guard."""
+    authenticator = InstapaperAuthenticator(
+        session,
+        session_file=str(session_file),
+        key_file=str(key_file),
+        username="arguser",
+        password="argpassword",
+    )
+
+    with requests_mock.Mocker() as m:
+        # No _xsrf pre-seeded on the session.
+        m.get(
+            "https://www.instapaper.com/user/login",
+            text="<form id='login_form'></form>",
+        )
+        m.post(
+            "https://www.instapaper.com/user/login",
+            text="login success",
+            status_code=302,
+            headers={"Location": "/home"},
+        )
+        m.get("https://www.instapaper.com/home", text="logged in page")
+        session.cookies.set("pfus", "test_pfus")
+        session.cookies.set("pfps", "test_pfps")
+        session.cookies.set("pfhs", "test_pfhs")
+
+        assert authenticator._login_with_credentials() is True
+        post_body = parse_qs(m.request_history[1].text)
+        assert "_xsrf" not in post_body
+
+
 def test_login_csrf_preflight_failure(authenticator, session, caplog):
     """Test _login_with_credentials returns False when the CSRF preflight GET fails."""
     authenticator.username = "user"
