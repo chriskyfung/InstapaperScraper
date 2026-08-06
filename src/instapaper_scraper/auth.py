@@ -39,9 +39,10 @@ class InstapaperAuthenticator:
 
     # Session/Cookie related
     COOKIE_PART_COUNT = 3
-    REQUIRED_COOKIES = {"pfu", "pfp", "pfh"}
+    REQUIRED_COOKIES = {"pfus", "pfps", "pfhs"}
     LOGIN_FORM_IDENTIFIER = "login_form"
-    LOGIN_SUCCESS_PATH = "/u"
+    LOGIN_SUCCESS_PATH = "/home"
+    XSRF_COOKIE_NAME = "_xsrf"
 
     # Request related
     REQUEST_TIMEOUT = 10
@@ -54,6 +55,12 @@ class InstapaperAuthenticator:
     LOG_NO_VALID_SESSION = "No valid session found. Please log in."
     LOG_LOGIN_SUCCESS = "Login successful."
     LOG_LOGIN_FAILED = "Login failed. Please check your credentials."
+    LOG_CSRF_FETCH_NETWORK_FAILED = (
+        "Could not fetch login page for CSRF token (network error): {e}"
+    )
+    LOG_CSRF_FETCH_FORBIDDEN = (
+        "Could not fetch login page for CSRF token: server returned 403 Forbidden."
+    )
     LOG_SESSION_LOAD_SUCCESS = "Successfully logged in using the loaded session data."
     LOG_SESSION_LOAD_FAILED = "Session loaded but verification failed."
     LOG_SESSION_LOAD_ERROR = "Could not load session from {session_file}: {e}. A new session will be created."
@@ -143,6 +150,28 @@ class InstapaperAuthenticator:
             logging.error(self.LOG_SESSION_VERIFY_FAILED.format(e=e))
             return False
 
+    def _fetch_csrf_token(self) -> tuple[bool, str | None]:
+        """Fetches the CSRF token via a preflight GET to the login page.
+
+        Returns:
+            A tuple of (success, token). On success the token may still be None
+            if the server did not set the cookie.
+        """
+        try:
+            response = self.session.get(
+                self.INSTAPAPER_LOGIN_URL, timeout=self.REQUEST_TIMEOUT
+            )
+        except requests.RequestException as e:
+            logging.error(self.LOG_CSRF_FETCH_NETWORK_FAILED.format(e=e))
+            return False, None
+
+        if response.status_code == 403:
+            logging.error(self.LOG_CSRF_FETCH_FORBIDDEN)
+            return False, None
+
+        token = self.session.cookies.get(self.XSRF_COOKIE_NAME)
+        return True, token
+
     def _login_with_credentials(self) -> bool:
         """Logs in using username/password from arguments or user prompt."""
         logging.info(self.LOG_NO_VALID_SESSION)
@@ -157,9 +186,23 @@ class InstapaperAuthenticator:
                 f"Using username '{self.username}' from command-line arguments."
             )
 
+        # Preflight GET to obtain the _xsrf cookie Instapaper now requires
+        # on the login POST body; without it the server returns 403.
+        ok, xsrf = self._fetch_csrf_token()
+        if not ok:
+            return False
+
+        login_payload = {
+            "username": username,
+            "password": password,
+            "keep_logged_in": "yes",
+        }
+        if xsrf:
+            login_payload[self.XSRF_COOKIE_NAME] = xsrf
+
         login_response = self.session.post(
             self.INSTAPAPER_LOGIN_URL,
-            data={"username": username, "password": password, "keep_logged_in": "yes"},
+            data=login_payload,
             timeout=self.REQUEST_TIMEOUT,
         )
 

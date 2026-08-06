@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Auth**: Login against the post-relaunch Instapaper site (issue #105):
+  - Preflight `GET /user/login` to acquire the `_xsrf` cookie and echo it in the
+    POST body (server now returns `403` otherwise).
+  - Recognise the new session cookie names (`pfus`, `pfps`, `pfhs`).
+  - Recognise the new post-login redirect path (`/home` instead of `/u`).
+
 ## [1.3.3] - 2026-06-26
 
 ### Changed
