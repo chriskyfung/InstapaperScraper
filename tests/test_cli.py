@@ -366,6 +366,7 @@ def test_cli_folder_argument_no_config_exits(
         in caplog.text
     )
     mock_auth.assert_called_once()
+    mock_auth.return_value.login.assert_called_once()
     mock_client.assert_not_called()
     mock_save.assert_not_called()
 
