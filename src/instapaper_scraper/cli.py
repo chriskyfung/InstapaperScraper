@@ -176,6 +176,7 @@ def main() -> None:
         password=args.password,
     )
     if not authenticator.login():
+        logging.error("Authentication failed. Check your credentials or session file.")
         sys.exit(1)  # Exit if login fails
 
     # 2. Determine Folder
