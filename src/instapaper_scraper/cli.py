@@ -153,6 +153,32 @@ def main() -> None:
         else fields_config.get("article_preview", False)
     )
 
+    session = requests.Session()
+
+    # Resolve session and key file paths
+    session_file = _resolve_path(
+        args.session_file,
+        DEFAULT_SESSION_FILENAME,
+        CONFIG_DIR / DEFAULT_SESSION_FILENAME,
+    )
+    key_file = _resolve_path(
+        args.key_file,
+        DEFAULT_KEY_FILENAME,
+        CONFIG_DIR / DEFAULT_KEY_FILENAME,
+    )
+
+    # 1. Authenticate
+    authenticator = InstapaperAuthenticator(
+        session,
+        session_file=session_file,
+        key_file=key_file,
+        username=args.username,
+        password=args.password,
+    )
+    if not authenticator.login():
+        sys.exit(1)  # Exit if login fails
+
+    # 2. Determine Folder
     if args.folder:
         if args.folder.lower() == "none":
             selected_folder = None
@@ -219,32 +245,7 @@ def main() -> None:
         ext = "db" if final_format == "sqlite" else final_format
         output_filename = DEFAULT_OUTPUT_FILENAME.format(ext=ext)
 
-    session = requests.Session()
-
-    # Resolve session and key file paths
-    session_file = _resolve_path(
-        args.session_file,
-        DEFAULT_SESSION_FILENAME,
-        CONFIG_DIR / DEFAULT_SESSION_FILENAME,
-    )
-    key_file = _resolve_path(
-        args.key_file,
-        DEFAULT_KEY_FILENAME,
-        CONFIG_DIR / DEFAULT_KEY_FILENAME,
-    )
-
-    # 1. Authenticate
-    authenticator = InstapaperAuthenticator(
-        session,
-        session_file=session_file,
-        key_file=key_file,
-        username=args.username,
-        password=args.password,
-    )
-    if not authenticator.login():
-        sys.exit(1)  # Exit if login fails
-
-    # 2. Scrape Articles
+    # 3. Scrape Articles
     client = InstapaperClient(session)
     try:
         folder_info = selected_folder if selected_folder else None
@@ -263,7 +264,7 @@ def main() -> None:
         logging.error(f"An unexpected error occurred during scraping: {e}")
         sys.exit(1)
 
-    # 3. Save Articles
+    # 4. Save Articles
     try:
         save_articles(
             all_articles,

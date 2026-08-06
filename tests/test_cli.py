@@ -351,6 +351,7 @@ def test_cli_folder_argument_no_config_exits(
     mock_auth, mock_client, mock_save, monkeypatch, caplog
 ):
     """Test that CLI exits if --folder is used without a config file."""
+    mock_auth.return_value.login.return_value = True
     # Simulate no config loaded
     mock_load_config = MagicMock(return_value=None)
     monkeypatch.setattr("instapaper_scraper.cli.load_config", mock_load_config)
@@ -364,7 +365,7 @@ def test_cli_folder_argument_no_config_exits(
         "Configuration file not found or failed to load. The --folder option requires a configuration file for custom folders."
         in caplog.text
     )
-    mock_auth.assert_not_called()
+    mock_auth.assert_called_once()
     mock_client.assert_not_called()
     mock_save.assert_not_called()
 
