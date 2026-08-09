@@ -5,7 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.4.0] - 2026-08-09
+
+### Added
+- **API Rewrite**: Replaced HTML scraping with the Instapaper JSON API (`/data/bookmarks` and `/data/user_session` endpoints) for more reliable and efficient data retrieval. This was required following Instapaper's complete website relaunch on July 28, 2026, which replaced the previous HTML-based interface with a modern single-page application. See the [announcement blog post](https://blog.instapaper.com/2026/07/28/instapaper-10/) for details.
+- **Rich Metadata**: Article data now includes additional fields from the JSON API: `author`, `time`, `site_name`, `liked`, `is_archived`, `tags`, and `notes`.
+- **Form Key Management**: Added automatic fetching and caching of the `x-form-key` header from the user session endpoint for API authentication.
+- **New Exception**: Added `InstapaperAPIError` exception class for JSON API error responses. `ScraperStructureChanged` now inherits from `InstapaperAPIError` for backward compatibility.
+- **New Constants**: Added constants for JSON API URLs (`INSTAPAPER_BOOKMARKS_URL`, `INSTAPAPER_USER_SESSION_URL`), section types (`SECTION_HOME`, `SECTION_LIKED`, `SECTION_ARCHIVE`, `SECTION_FOLDER`), sort options (`SORT_NEWEST`, `SORT_OLDEST`), and additional article field keys (`KEY_AUTHOR`, `KEY_DESCRIPTION`, `KEY_TIME`, `KEY_SITE_NAME`, `KEY_TAGS`, `KEY_NOTES`, `KEY_LIKED`, `KEY_IS_ARCHIVED`).
+
+### Changed
+- **CLI**:
+  - Moved authentication logic to the start of `main` to ensure login happens before folder selection and any processing.
+  - Added error logging for failed login attempts.
+- **API Client**:
+  - Rewrote `InstapaperClient` to use the Instapaper JSON API instead of HTML parsing with BeautifulSoup.
+  - Replaced `_get_page_url()` with `_build_request_params()` for constructing API query parameters.
+  - Replaced `_parse_article_data()` with `_parse_bookmarks()` for parsing JSON bookmark objects.
+  - Updated `get_articles()` to send requests to the bookmarks API endpoint with proper headers and query parameters.
+  - Updated `get_all_articles()` to work with the new API response format.
+- **Error Handling**:
+  - Standardized exception hierarchy to use `InstapaperAPIError` as the base exception for all API-related errors.
+  - Added specific exception classes `ApiParseError` and `ApiNetworkError` for more granular error handling.
+  - Externalized session fetch error messages for better maintainability.
+  - Added logging for session fetch errors to improve debuggability.
+- **Code Quality**:
+  - Configured `ruff` as the primary linter with appropriate rule sets.
+  - Reorganized import statements following standard conventions.
+  - Removed unused legacy URL constants from the codebase.
+- **Exception Naming**:
+  - Renamed `ScraperStructureChanged` to `ApiResponseError` to accurately reflect that this exception is raised for unexpected JSON API responses, not HTML DOM structure changes.
+- **Dependencies**:
+  - Bumped `cryptography` to v50.0.0 to fix CVE-2026-69247.
+  - Bumped pre-commit hook versions.
+  - Removed `beautifulsoup4` and `soupsieve` from core dependencies (no longer needed after API migration).
+  - Removed `types-beautifulsoup4` from development dependencies and pre-commit hook configuration.
+- **Testing**:
+  - Migrated all API tests from HTML-based mocking to JSON-based mocking.
+  - Replaced `get_mock_html()` with `get_mock_bookmarks_json()` for generating mock API responses.
+  - Added `setup_session_mock()` helper for mocking the user session endpoint.
+  - Updated folder tests to test `_build_request_params()` instead of the removed `_get_page_url()`.
+  - Added tests for form key caching and rich metadata inclusion.
+  - Removed tests for removed HTML parsing methods (`_parse_article_data`).
 
 ### Fixed
 - **Auth**: Login against the post-relaunch Instapaper site (issue #105):
@@ -13,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     POST body (server now returns `403` otherwise).
   - Recognise the new session cookie names (`pfus`, `pfps`, `pfhs`).
   - Recognise the new post-login redirect path (`/home` instead of `/u`).
+- **CSV Output**: Fixed a `ValueError` in `save_to_csv` that occurred when data dictionaries contained extra keys not present in the fieldnames list. The writer now filters each row to only include keys defined in the fieldnames, preventing crashes when optional fields (e.g., `instapaper_url`, `article_preview`) are not included in the output.
+- **Bookmark Parsing**: Skip bookmarks that are missing identification IDs instead of crashing, improving resilience when processing incomplete data.
 
 ## [1.3.3] - 2026-06-26
 
