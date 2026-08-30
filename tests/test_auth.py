@@ -398,6 +398,7 @@ def test_verify_session_fails_on_non_json(authenticator):
 
 
 def test_verify_session_fails_on_non_ok(authenticator, caplog):
+    """A non-2xx response (e.g. 500) returns False and logs the status code."""
     with requests_mock.Mocker() as m:
         m.get(INSTAPAPER_USER_SESSION_URL, status_code=500, text="oops")
         with caplog.at_level(logging.ERROR):
