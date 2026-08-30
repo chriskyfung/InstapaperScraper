@@ -647,3 +647,35 @@ def test_cli_main_block_execution():
             mock_main.assert_called_once()
     except StopIteration:
         pytest.fail("Could not find __main__ block in cli.py")
+
+
+def test_cli_dump_session(mock_auth, monkeypatch, capsys, caplog):
+    """--dump-session prints a masked cookie summary and skips scraping."""
+    mock_auth.return_value.dump_session.return_value = [
+        "pfus=abcd...wxyz (.instapaper.com)"
+    ]
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "instapaper-scraper",
+            "--dump-session",
+            "--session-file",
+            "my_session.file",
+            "--key-file",
+            "my_key.file",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 0  # explicit successful termination
+
+    out = capsys.readouterr().out
+    assert "Session file: my_session.file" in out
+    assert "pfus=abcd...wxyz (.instapaper.com)" in out
+    # The authenticator was constructed with the resolved paths.
+    called_kwargs = mock_auth.call_args[1]
+    assert called_kwargs.get("session_file") == Path("my_session.file")
+    assert called_kwargs.get("key_file") == Path("my_key.file")
+    # dump_session was called and no scraping happened (no save_articles).
+    mock_auth.return_value.dump_session.assert_called_once()

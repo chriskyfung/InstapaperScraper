@@ -810,3 +810,67 @@ def test_rich_metadata_included(client, session):
         assert articles[0]["is_archived"] is False
         assert articles[0]["tags"] == ["tag1"]
         assert articles[0]["notes"] == []
+
+
+class TestUserAgent:
+    """Tests for User-Agent resolution (argument > env var > default)."""
+
+    def test_default_user_agent(self, session):
+        client = InstapaperClient(session)
+        assert client.user_agent == InstapaperClient.DEFAULT_USER_AGENT
+
+    def test_user_agent_argument_wins(self, session, monkeypatch):
+        monkeypatch.setenv("INSTAPAPER_USER_AGENT", "env-ua")
+        client = InstapaperClient(session, user_agent="explicit-ua")
+        assert client.user_agent == "explicit-ua"
+
+    def test_user_agent_env_var(self, session, monkeypatch):
+        monkeypatch.setenv("INSTAPAPER_USER_AGENT", "env-ua")
+        client = InstapaperClient(session)
+        assert client.user_agent == "env-ua"
+
+    def test_headers_include_user_agent(self, client):
+        headers = client._get_headers()
+        assert headers["User-Agent"] == client.user_agent
+
+    def test_form_key_request_sends_user_agent(self, session, requests_mock):
+        requests_mock.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"form_key": "key123"}},
+        )
+        client = InstapaperClient(session)
+        client._fetch_form_key()
+        assert client._form_key == "key123"
+        assert requests_mock.last_request.headers["User-Agent"] == client.user_agent
+        assert (
+            requests_mock.last_request.headers["x-requested-with"] == "XMLHttpRequest"
+        )
+
+
+def test_default_user_agent_shape():
+    """DEFAULT_USER_AGENT must be a well-formed desktop Chrome UA string.
+
+    This pins the format (not the freshness — see the MAINTENANCE note on
+    the constant for the version review cadence).
+    """
+    ua = InstapaperClient.DEFAULT_USER_AGENT
+    assert re.fullmatch(
+        r"Mozilla/5\.0 \(Windows NT 10\.0; Win64; x64\) AppleWebKit/537\.36 "
+        r"\(KHTML, like Gecko\) Chrome/\d+\.0\.0\.0 Safari/537\.36",
+        ua,
+    ), f"Malformed default User-Agent: {ua!r}"
+
+    def test_empty_user_agent_falls_back_with_warning(
+        self, session, monkeypatch, caplog
+    ):
+        monkeypatch.setenv("INSTAPAPER_USER_AGENT", "env-ua")
+        with caplog.at_level(logging.WARNING):
+            client = InstapaperClient(session, user_agent="")
+            assert client.user_agent == InstapaperClient.DEFAULT_USER_AGENT
+            assert "Empty user_agent provided" in caplog.text
+
+    def test_whitespace_user_agent_falls_back_with_warning(self, session, caplog):
+        with caplog.at_level(logging.WARNING):
+            client = InstapaperClient(session, user_agent="   ")
+            assert client.user_agent == InstapaperClient.DEFAULT_USER_AGENT
+            assert "Empty user_agent provided" in caplog.text

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Session Reuse**: Fixed stored sessions never being reused (the tool re-logged-in on every run). Root cause: the `/u` endpoint now returns 200 regardless of login state, so session verification always failed. Verification now probes `/data/user_session`, which returns a JSON payload with a `user` object only for authenticated sessions.
+
+### Changed
+- **Session File Format v2**: The encrypted session file now stores all cookies (not just the auth cookies) as a JSON payload with `domain`, `path`, and `secure` attributes. The JSON format is immune to special characters in cookie values. Legacy v1 session files are still loaded and are upgraded automatically on the next save.
+- **Form Key Hand-off**: The `x-form-key` is now captured during session verification and passed directly to the API client, avoiding a redundant request on the first scrape.
+
+### Added
+- **Two-stage Verification Fallback**: If verification with the full cookie jar is rejected, a retry is made with an explicit `Cookie` header containing only the auth cookies (`pfus`/`pfps`/`pfhs`), replicating the browser request exactly.
+- **`--dump-session` CLI Flag**: Prints a masked summary of the stored session cookies for troubleshooting.
+- **Post-save Self-check**: Every saved session file is fsynced, then re-read from disk, decrypted, and compared with what was written to detect partial writes or storage corruption at save time.
+- **Configurable User-Agent**: The `User-Agent` sent to the API can be set via the `INSTAPAPER_USER_AGENT` environment variable or the `InstapaperClient(user_agent=...)` argument (defaults to a browser-like UA).
+- **Documentation**: Added `docs/session-management.md` describing session storage, verification, and troubleshooting.
+
 ## [1.4.0] - 2026-08-09
 
 ### Added
