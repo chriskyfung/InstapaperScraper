@@ -704,11 +704,19 @@ def test_dump_session_empty_cookies(authenticator, session_file):
 
 
 def test_dump_session_masks_short_values(authenticator, session_file):
-    """Values of 8 characters or fewer are shown unmasked."""
+    """Values of 8 characters or fewer are fully redacted by _mask."""
     authenticator.session.cookies.set("pfus", "short", domain=".instapaper.com")
     authenticator._save_session()
     (line,) = authenticator.dump_session()
-    assert line == "pfus=short (.instapaper.com)"
+    assert line == "pfus=***** (.instapaper.com)"
+
+
+def test_dump_session_marks_empty_value(authenticator, session_file):
+    """An empty cookie value is rendered as <empty>, never blank."""
+    authenticator.session.cookies.set("pfus", "", domain=".instapaper.com")
+    authenticator._save_session()
+    (line,) = authenticator.dump_session()
+    assert line == "pfus=<empty> (.instapaper.com)"
 
 
 def test_verify_saved_session_detects_disk_corruption(

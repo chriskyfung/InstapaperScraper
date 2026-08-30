@@ -580,6 +580,8 @@ class InstapaperAuthenticator:
 
     @staticmethod
     def _mask(value: str) -> str:
+        if not value:
+            return "<empty>"
         if len(value) <= 8:
-            return value
+            return "*" * len(value)
         return f"{value[:4]}...{value[-4:]}"
