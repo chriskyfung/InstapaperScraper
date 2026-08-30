@@ -66,6 +66,14 @@ class InstapaperClient:
     # Windows is used as a neutral, statistically common fingerprint.
     # Override via the INSTAPAPER_USER_AGENT env var or the user_agent
     # constructor argument.
+    #
+    # MAINTENANCE: Chrome/152 was current stable as of 2026-08 (verified
+    # via https://endoflife.date/api/chrome.json). Chrome ships a new
+    # major version roughly every 4 weeks. If this string becomes more
+    # than ~6 months old, check the latest stable major at that URL and
+    # bump the version here. A stale-but-plausible (older) version is
+    # acceptable; a *future*-dated one is a strong bot signal and must
+    # never be used.
     DEFAULT_USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"

@@ -845,3 +845,17 @@ class TestUserAgent:
         assert (
             requests_mock.last_request.headers["x-requested-with"] == "XMLHttpRequest"
         )
+
+
+def test_default_user_agent_shape():
+    """DEFAULT_USER_AGENT must be a well-formed desktop Chrome UA string.
+
+    This pins the format (not the freshness — see the MAINTENANCE note on
+    the constant for the version review cadence).
+    """
+    ua = InstapaperClient.DEFAULT_USER_AGENT
+    assert re.fullmatch(
+        r"Mozilla/5\.0 \(Windows NT 10\.0; Win64; x64\) AppleWebKit/537\.36 "
+        r"\(KHTML, like Gecko\) Chrome/\d+\.0\.0\.0 Safari/537\.36",
+        ua,
+    ), f"Malformed default User-Agent: {ua!r}"
