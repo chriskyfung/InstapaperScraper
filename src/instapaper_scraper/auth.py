@@ -7,7 +7,11 @@ from pathlib import Path
 import requests
 from cryptography.fernet import Fernet
 
-from .constants import INSTAPAPER_BASE_URL, INSTAPAPER_USER_SESSION_URL
+from .constants import (
+    INSTAPAPER_BASE_URL,
+    INSTAPAPER_USER_SESSION_URL,
+    XHR_HEADERS,
+)
 
 
 # --- Encryption Helper ---
@@ -41,10 +45,8 @@ class InstapaperAuthenticator:
     INSTAPAPER_LOGIN_URL = f"{INSTAPAPER_BASE_URL}/user/login"
 
     # Headers for the verification request, mirroring the web app's XHR.
-    VERIFY_HEADERS = {
-        "accept": "application/json",
-        "x-requested-with": "XMLHttpRequest",
-    }
+    # Shared with api.py so both callers of /data/user_session match.
+    VERIFY_HEADERS = XHR_HEADERS
 
     # Session/Cookie related
     COOKIE_PART_COUNT = 3

@@ -25,6 +25,7 @@ from .constants import (
     SECTION_HOME,
     SORT_NEWEST,
     SPECIAL_SECTIONS,
+    XHR_HEADERS,
 )
 from .exceptions import ApiParseError, InstapaperAPIError
 
@@ -135,10 +136,10 @@ class InstapaperClient:
         if self._form_key:
             return
 
-        # Mirror the browser's XHR request to this endpoint: it must carry
-        # the same API headers as /data/bookmarks (x-requested-with etc.)
+        # Shared XHR headers (see constants.XHR_HEADERS) guarantee parity
+        # with the authenticator's verification call to this endpoint;
         # the session cookies provide auth.
-        headers = dict(self.HEADERS)
+        headers = dict(XHR_HEADERS)
 
         try:
             response = self.session.get(
