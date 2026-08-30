@@ -158,7 +158,7 @@ def main() -> None:
 
     if args.dump_session:
         _dump_stored_session(args)
-        return
+        sys.exit(0)
 
     config = load_config(args.config_path)
     folders = config.get("folders", []) if config else []

@@ -666,7 +666,9 @@ def test_cli_dump_session(mock_auth, monkeypatch, capsys, caplog):
         ],
     )
 
-    cli.main()
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 0  # explicit successful termination
 
     out = capsys.readouterr().out
     assert "Session file: my_session.file" in out
