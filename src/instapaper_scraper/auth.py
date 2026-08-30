@@ -41,15 +41,7 @@ def get_encryption_key(key_file: str | Path) -> bytes:
 
 class InstapaperAuthenticator:
     # URLs
-    # NOTE: /u is no longer usable for session verification because it now
-    # returns 200 regardless of login state. /data/user_session returns a
-    # JSON payload with a "user" object only for authenticated sessions.
-    INSTAPAPER_VERIFY_URL = INSTAPAPER_USER_SESSION_URL
     INSTAPAPER_LOGIN_URL = f"{INSTAPAPER_BASE_URL}/user/login"
-
-    # Headers for the verification request, mirroring the web app's XHR.
-    # Shared with api.py so both callers of /data/user_session match.
-    VERIFY_HEADERS = XHR_HEADERS
 
     # Session/Cookie related
     COOKIE_PART_COUNT = 3
@@ -233,8 +225,8 @@ class InstapaperAuthenticator:
     def _verify_session(self) -> bool:
         """Checks if the current session is valid via /data/user_session.
 
-        The previous check (GET /u, asserting "login_form" was absent) no
-        longer works because /u returns 200 regardless of login state.
+        (/u is unusable for verification: it returns 200 regardless of
+        login state, so its old "login_form"-absence check never fired.)
         /data/user_session returns a JSON payload containing a "user" object
         only for authenticated sessions, so it is a reliable probe.
 
@@ -269,8 +261,8 @@ class InstapaperAuthenticator:
         try:
             # Network errors only — response parsing is handled by the caller.
             response = self.session.get(
-                self.INSTAPAPER_VERIFY_URL,
-                headers=self.VERIFY_HEADERS,
+                INSTAPAPER_USER_SESSION_URL,
+                headers=XHR_HEADERS,
                 timeout=self.REQUEST_TIMEOUT,
             )
         except requests.RequestException as e:
@@ -292,11 +284,11 @@ class InstapaperAuthenticator:
             logging.error(self.LOG_SESSION_MINIMAL_NO_COOKIES)
             return None
 
-        headers = dict(self.VERIFY_HEADERS)
+        headers = dict(XHR_HEADERS)
         headers["Cookie"] = cookie_header
         try:
             request = requests.Request(
-                "GET", self.INSTAPAPER_VERIFY_URL, headers=headers
+                "GET", INSTAPAPER_USER_SESSION_URL, headers=headers
             ).prepare()
             response = self.session.send(request, timeout=self.REQUEST_TIMEOUT)
         except requests.RequestException as e:
