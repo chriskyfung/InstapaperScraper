@@ -85,6 +85,10 @@ class InstapaperAuthenticator:
     LOG_SESSION_LOAD_FAILED = "Session loaded but verification failed."
     LOG_SESSION_LOAD_ERROR = "Could not load session from {session_file}: {e}. A new session will be created."
     LOG_SESSION_VERIFY_FAILED = "Session verification request failed: {e}"
+    LOG_SESSION_NO_FORM_KEY = (
+        "form_key not present in user_session payload; "
+        "client will fetch it on first use."
+    )
     LOG_NO_KNOWN_COOKIE_TO_SAVE = "Could not find a known session cookie to save."
     LOG_SAVED_SESSION = "Saved encrypted session to {session_file}."
 
@@ -174,6 +178,7 @@ class InstapaperAuthenticator:
         """
         self.form_key = None
         try:
+            # Network errors only — response parsing is handled below.
             verify_response = self.session.get(
                 self.INSTAPAPER_VERIFY_URL,
                 headers=self.VERIFY_HEADERS,
@@ -198,11 +203,13 @@ class InstapaperAuthenticator:
             return False
 
         user = data.get("user") if isinstance(data, dict) else None
-        if not user:
+        if not isinstance(user, dict):
             logging.error(self.LOG_SESSION_VERIFY_NO_USER)
             return False
 
         self.form_key = user.get("form_key")
+        if not self.form_key:
+            logging.debug(self.LOG_SESSION_NO_FORM_KEY)
         return True
 
     def _fetch_csrf_token(self) -> tuple[bool, str | None]:

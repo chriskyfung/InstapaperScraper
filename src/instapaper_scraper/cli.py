@@ -247,6 +247,8 @@ def main() -> None:
         output_filename = DEFAULT_OUTPUT_FILENAME.format(ext=ext)
 
     # 3. Scrape Articles
+    # form_key is None for fresh credential logins; InstapaperClient
+    # fetches it lazily via _fetch_form_key() on first use.
     client = InstapaperClient(session, form_key=authenticator.form_key)
     try:
         folder_info = selected_folder if selected_folder else None
