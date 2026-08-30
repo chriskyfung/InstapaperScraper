@@ -666,3 +666,35 @@ def test_dump_session_masks_short_values(authenticator, session_file):
     authenticator._save_session()
     (line,) = authenticator.dump_session()
     assert line == "pfus=short (.instapaper.com)"
+
+
+def test_verify_saved_session_detects_disk_corruption(
+    authenticator, session_file, caplog
+):
+    """The self-check reads the file from DISK: corruption on disk after the
+    write must be detected (this is the regression the disk round-trip fix
+    addresses — the old in-memory check could not see it)."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator._save_session()
+
+    # Simulate a partial/failed write by corrupting the file on disk.
+    session_file.write_bytes(b"garbage-from-a-failed-flush")
+
+    with caplog.at_level(logging.WARNING):
+        authenticator._verify_saved_session(
+            [{"name": "pfus", "value": "u1", "domain": ".instapaper.com"}]
+        )
+        assert "Post-save self-check could not run" in caplog.text
+
+
+def test_save_session_propagates_fsync_errors(authenticator, session_file, monkeypatch):
+    """If fsync fails, the data is not durably stored: the error must
+    propagate rather than be swallowed as a warning."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+
+    def failing_fsync(fd):
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr("os.fsync", failing_fsync)
+    with pytest.raises(OSError, match="simulated disk failure"):
+        authenticator._save_session()

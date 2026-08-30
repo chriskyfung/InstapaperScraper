@@ -416,7 +416,8 @@ class InstapaperAuthenticator:
         is already Fernet-encrypted with owner-only permissions, and cookies
         such as _xsrf may be required for the restored session to behave
         like the original browser context. The v2 JSON payload is immune to
-        special characters in cookie values.
+        special characters in cookie values. The write is fsynced and then
+        verified by re-reading and decrypting the file from disk.
         """
         # Iterating a RequestsCookieJar yields Cookie objects at runtime,
         # but its type stubs declare Iterator[str]; cast for mypy.
@@ -444,17 +445,23 @@ class InstapaperAuthenticator:
         self.session_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.session_file, "wb") as f:
             f.write(encrypted_data)
+            # Force the write to stable storage so the disk re-read check
+            # below actually validates the persisted bytes.
+            f.flush()
+            os.fsync(f.fileno())
 
         os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
         logging.info(self.LOG_SAVED_SESSION.format(session_file=self.session_file))
-        self._verify_saved_session(encrypted_data, cookies_payload)
+        self._verify_saved_session(cookies_payload)
 
-    def _verify_saved_session(
-        self, encrypted_data: bytes, cookies_payload: list[dict[str, Any]]
-    ) -> None:
-        """Round-trip self-check: decrypt the file just written and compare."""
+    def _verify_saved_session(self, cookies_payload: list[dict[str, Any]]) -> None:
+        """Disk round-trip self-check: re-read the file just written from
+        disk, decrypt it, and compare it with what was intended. Reading
+        from disk (rather than the in-memory bytes) also catches partial
+        writes and disk errors."""
         try:
-            decrypted = self.fernet.decrypt(encrypted_data).decode("utf-8")
+            encrypted_on_disk = self.session_file.read_bytes()
+            decrypted = self.fernet.decrypt(encrypted_on_disk).decode("utf-8")
             read_back = self._parse_session_payload(decrypted)
 
             def key(cookie: dict[str, Any]) -> tuple[str, str]:
