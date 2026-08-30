@@ -102,6 +102,7 @@ def test_save_and_load_session(authenticator, session_file, key_file):
     authenticator.session.cookies.set("pfus", "user123", domain=".instapaper.com")
     authenticator.session.cookies.set("pfps", "pass123", domain=".instapaper.com")
     authenticator.session.cookies.set("pfhs", "hash123", domain=".instapaper.com")
+    authenticator.session.cookies.set("_xsrf", "xsrf123", domain="www.instapaper.com")
 
     # 2. Save the session
     authenticator._save_session()
@@ -130,6 +131,7 @@ def test_save_and_load_session(authenticator, session_file, key_file):
     assert new_session.cookies.get("pfus") == "user123"
     assert new_session.cookies.get("pfps") == "pass123"
     assert new_session.cookies.get("pfhs") == "hash123"
+    assert new_session.cookies.get("_xsrf") == "xsrf123"
 
 
 def test_load_session_verification_fails(authenticator, session_file, key_file):
