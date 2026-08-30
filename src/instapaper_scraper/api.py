@@ -123,15 +123,26 @@ class InstapaperClient:
             user_agent: User-Agent header to send with API requests. Falls
                 back to the INSTAPAPER_USER_AGENT environment variable, then
                 to DEFAULT_USER_AGENT. Override this if the default is
-                blocked or you prefer a different fingerprint.
+                blocked or you prefer a different fingerprint. An empty or
+                whitespace-only value is rejected with a warning (an empty
+                User-Agent header guarantees blocking), falling back to the
+                default.
         """
         self.session = session
         self._form_key: str | None = form_key
-        # A plain `or` chain keeps the type `str` for mypy (os.getenv's
-        # stubs return `str | None` even with an explicit default).
-        self.user_agent = (
-            user_agent or os.getenv(self.ENV_USER_AGENT) or self.DEFAULT_USER_AGENT
-        )
+        # None means "auto-resolve"; an empty/whitespace-only explicit value
+        # is a caller mistake (an empty User-Agent header guarantees
+        # blocking), so it is rejected with a warning instead of being sent.
+        if user_agent is None:
+            # A plain `or` chain keeps the type `str` for mypy (os.getenv's
+            # stubs return `str | None` even with an explicit default).
+            user_agent = os.getenv(self.ENV_USER_AGENT) or self.DEFAULT_USER_AGENT
+        elif not user_agent.strip():
+            logging.warning(
+                "Empty user_agent provided; using the default User-Agent instead."
+            )
+            user_agent = self.DEFAULT_USER_AGENT
+        self.user_agent = user_agent
 
         try:
             self.max_retries = int(

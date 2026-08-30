@@ -859,3 +859,18 @@ def test_default_user_agent_shape():
         r"\(KHTML, like Gecko\) Chrome/\d+\.0\.0\.0 Safari/537\.36",
         ua,
     ), f"Malformed default User-Agent: {ua!r}"
+
+    def test_empty_user_agent_falls_back_with_warning(
+        self, session, monkeypatch, caplog
+    ):
+        monkeypatch.setenv("INSTAPAPER_USER_AGENT", "env-ua")
+        with caplog.at_level(logging.WARNING):
+            client = InstapaperClient(session, user_agent="")
+            assert client.user_agent == InstapaperClient.DEFAULT_USER_AGENT
+            assert "Empty user_agent provided" in caplog.text
+
+    def test_whitespace_user_agent_falls_back_with_warning(self, session, caplog):
+        with caplog.at_level(logging.WARNING):
+            client = InstapaperClient(session, user_agent="   ")
+            assert client.user_agent == InstapaperClient.DEFAULT_USER_AGENT
+            assert "Empty user_agent provided" in caplog.text
