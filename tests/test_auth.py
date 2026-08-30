@@ -124,9 +124,12 @@ def test_save_and_load_session(authenticator, session_file, key_file):
     # The form_key captured during verification is exposed for the client
     assert new_auth.form_key == "key123"
 
-    # Verify cookies were loaded (including non-pf* cookies like _xsrf)
+    # Verify all required cookies were round-tripped through the file.
+    # (Only REQUIRED_COOKIES — pfus, pfps, pfhs — are saved; _xsrf is
+    # deliberately not persisted.)
     assert new_session.cookies.get("pfus") == "user123"
     assert new_session.cookies.get("pfps") == "pass123"
+    assert new_session.cookies.get("pfhs") == "hash123"
 
 
 def test_load_session_verification_fails(authenticator, session_file, key_file):
