@@ -49,3 +49,11 @@ SORT_OLDEST = "oldest"
 
 # --- Output Formats ---
 SUPPORTED_FORMATS = ["csv", "json", "sqlite"]
+
+# Headers mirroring the browser's XHR when calling /data/user_session.
+# Used by both the authenticator (session verification) and the API client
+# (form key fetch) so both callers of the endpoint send identical headers.
+XHR_HEADERS = {
+    "accept": "application/json",
+    "x-requested-with": "XMLHttpRequest",
+}

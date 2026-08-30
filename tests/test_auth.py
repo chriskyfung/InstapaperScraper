@@ -11,6 +11,7 @@ from instapaper_scraper.auth import (
     InstapaperAuthenticator,
     get_encryption_key,
 )
+from instapaper_scraper.constants import INSTAPAPER_USER_SESSION_URL
 
 
 @pytest.fixture
@@ -114,12 +115,21 @@ def test_save_and_load_session(authenticator, session_file, key_file):
 
     # Mock the verification request
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u", text="logged in page")
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "user123", "form_key": "key123"}},
+        )
         assert new_auth._load_session() is True
 
-    # Verify cookies were loaded
+    # The form_key captured during verification is exposed for the client
+    assert new_auth.form_key == "key123"
+
+    # Verify all required cookies were round-tripped through the file.
+    # (Only REQUIRED_COOKIES — pfus, pfps, pfhs — are saved; _xsrf is
+    # deliberately not persisted.)
     assert new_session.cookies.get("pfus") == "user123"
     assert new_session.cookies.get("pfps") == "pass123"
+    assert new_session.cookies.get("pfhs") == "hash123"
 
 
 def test_load_session_verification_fails(authenticator, session_file, key_file):
@@ -134,9 +144,9 @@ def test_load_session_verification_fails(authenticator, session_file, key_file):
         new_session, session_file=str(session_file), key_file=str(key_file)
     )
 
-    # Mock the verification request to return the login form
+    # Mock the verification request to signal an unauthenticated session
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u", text='<div id="login_form"></div>')
+        m.get(INSTAPAPER_USER_SESSION_URL, status_code=403, text="Forbidden")
         assert new_auth._load_session() is False
 
     # The invalid cookies should have been cleared
@@ -219,7 +229,7 @@ def test_verify_session_request_exception(authenticator, caplog):
     """Test _verify_session handles requests.RequestException."""
     with requests_mock.Mocker() as m:
         m.get(
-            "https://www.instapaper.com/u",
+            INSTAPAPER_USER_SESSION_URL,
             exc=requests.exceptions.ConnectionError("Test connection error"),
         )
 
@@ -268,7 +278,10 @@ def test_load_session_with_request_exception(authenticator, session_file, caplog
 
     # Mock the verification request to raise an exception
     with requests_mock.Mocker() as m:
-        m.get("https://www.instapaper.com/u", exc=requests.exceptions.ConnectionError)
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            exc=requests.exceptions.ConnectionError,
+        )
         with caplog.at_level(logging.WARNING):
             assert new_auth._load_session() is False
             assert "Session loaded but verification failed." in caplog.text
@@ -357,3 +370,83 @@ def test_login_csrf_preflight_403(authenticator, session, caplog):
             assert "server returned 403 Forbidden" in caplog.text
         # POST must not fire if the preflight got 403.
         assert all(r.method == "GET" for r in m.request_history)
+
+
+def test_verify_session_success_captures_form_key(authenticator):
+    """A valid /data/user_session response marks the session verified and
+    captures the form_key from the same payload."""
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "me", "form_key": "abc123"}},
+        )
+        assert authenticator._verify_session() is True
+        assert authenticator.form_key == "abc123"
+        assert m.last_request.headers["x-requested-with"] == "XMLHttpRequest"
+
+
+def test_verify_session_fails_without_user_object(authenticator):
+    """A 200 response whose JSON lacks a user object is not a valid session."""
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL, json={"error": "not logged in"})
+        assert authenticator._verify_session() is False
+        assert authenticator.form_key is None
+
+
+def test_verify_session_fails_on_non_json(authenticator):
+    """A 200 HTML response (e.g. a login page) fails verification."""
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL, text="<html>login</html>")
+        assert authenticator._verify_session() is False
+
+
+def test_verify_session_fails_on_non_ok(authenticator, caplog):
+    """A non-2xx response (e.g. 500) returns False and logs the status code."""
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL, status_code=500, text="oops")
+        with caplog.at_level(logging.ERROR):
+            assert authenticator._verify_session() is False
+            assert "returned status 500" in caplog.text
+
+
+def test_load_session_skips_malformed_cookie_lines(authenticator, session_file, caplog):
+    """Cookie lines without exactly name:value:domain are skipped, not
+    silently parsed into corrupted values."""
+    cookie_data = "pfus:user123:.instapaper.com\nbroken-line-no-colons\n"
+    encrypted = authenticator.fernet.encrypt(cookie_data.encode("utf-8"))
+    session_file.write_bytes(encrypted)
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "user123", "form_key": "k"}},
+        )
+        with caplog.at_level(logging.WARNING):
+            assert authenticator._load_session() is True
+            assert "malformed cookie line" in caplog.text
+    assert authenticator.session.cookies.get("pfus") == "user123"
+
+
+def test_load_session_colon_in_cookie_value(session, session_file, key_file):
+    """Documents a known limitation of the name:value:domain line format:
+    a cookie value containing ':' is truncated at the first colon (the
+    remainder is treated as the domain). Auth values (pfus/pfps/pfhs) are
+    hex tokens in practice, so this does not occur for them; if a colon-
+    bearing cookie ever mattered, the file format would need escaping."""
+    authenticator = InstapaperAuthenticator(
+        session, session_file=str(session_file), key_file=str(key_file)
+    )
+    authenticator.session.cookies.set("pfus", "a:b:c", domain=".instapaper.com")
+    authenticator._save_session()
+
+    new_session = requests.Session()
+    new_auth = InstapaperAuthenticator(
+        new_session, session_file=str(session_file), key_file=str(key_file)
+    )
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "u", "form_key": "k"}},
+        )
+        assert new_auth._load_session() is True
+    assert new_session.cookies.get("pfus") == "a"

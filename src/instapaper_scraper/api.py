@@ -25,6 +25,7 @@ from .constants import (
     SECTION_HOME,
     SORT_NEWEST,
     SPECIAL_SECTIONS,
+    XHR_HEADERS,
 )
 from .exceptions import ApiParseError, InstapaperAPIError
 
@@ -87,14 +88,21 @@ class InstapaperClient:
     MSG_SESSION_FETCH_NON_OK = "User session request failed with status {status_code}."
     MSG_PARSE_FAILED = "Could not parse bookmark {id}: {e}"
 
-    def __init__(self, session: requests.Session):
+    def __init__(
+        self,
+        session: requests.Session,
+        form_key: str | None = None,
+    ):
         """
         Initializes the client with a requests Session.
         Args:
             session: A requests.Session object, presumably authenticated.
+            form_key: A pre-fetched x-form-key (e.g. captured by the
+                authenticator during session verification). If omitted, the
+                client fetches one from /data/user_session on first use.
         """
         self.session = session
-        self._form_key: str | None = None
+        self._form_key: str | None = form_key
 
         try:
             self.max_retries = int(
@@ -128,9 +136,15 @@ class InstapaperClient:
         if self._form_key:
             return
 
+        # Shared XHR headers (see constants.XHR_HEADERS) guarantee parity
+        # with the authenticator's verification call to this endpoint;
+        # the session cookies provide auth.
+        headers = dict(XHR_HEADERS)
+
         try:
             response = self.session.get(
                 INSTAPAPER_USER_SESSION_URL,
+                headers=headers,
                 timeout=self.DEFAULT_REQUEST_TIMEOUT,
             )
             if response.ok:

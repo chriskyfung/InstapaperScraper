@@ -7,7 +7,11 @@ from pathlib import Path
 import requests
 from cryptography.fernet import Fernet
 
-from .constants import INSTAPAPER_BASE_URL
+from .constants import (
+    INSTAPAPER_BASE_URL,
+    INSTAPAPER_USER_SESSION_URL,
+    XHR_HEADERS,
+)
 
 
 # --- Encryption Helper ---
@@ -34,13 +38,19 @@ def get_encryption_key(key_file: str | Path) -> bytes:
 
 class InstapaperAuthenticator:
     # URLs
-    INSTAPAPER_VERIFY_URL = f"{INSTAPAPER_BASE_URL}/u"
+    # NOTE: /u is no longer usable for session verification because it now
+    # returns 200 regardless of login state. /data/user_session returns a
+    # JSON payload with a "user" object only for authenticated sessions.
+    INSTAPAPER_VERIFY_URL = INSTAPAPER_USER_SESSION_URL
     INSTAPAPER_LOGIN_URL = f"{INSTAPAPER_BASE_URL}/user/login"
+
+    # Headers for the verification request, mirroring the web app's XHR.
+    # Shared with api.py so both callers of /data/user_session match.
+    VERIFY_HEADERS = XHR_HEADERS
 
     # Session/Cookie related
     COOKIE_PART_COUNT = 3
     REQUIRED_COOKIES = {"pfus", "pfps", "pfhs"}
-    LOGIN_FORM_IDENTIFIER = "login_form"
     LOGIN_SUCCESS_PATH = "/home"
     XSRF_COOKIE_NAME = "_xsrf"
 
@@ -61,10 +71,26 @@ class InstapaperAuthenticator:
     LOG_CSRF_FETCH_FORBIDDEN = (
         "Could not fetch login page for CSRF token: server returned 403 Forbidden."
     )
+    LOG_SESSION_VERIFY_NON_OK = (
+        "Session verification failed: /data/user_session returned status {status_code}."
+    )
+    LOG_SESSION_VERIFY_NOT_JSON = (
+        "Session verification failed: /data/user_session did not return JSON."
+    )
+    LOG_SESSION_VERIFY_NO_USER = (
+        "Session verification failed: no user object in /data/user_session response."
+    )
+    LOG_MALFORMED_COOKIE_LINE = (
+        "Skipping malformed cookie line in session file (expected name:value:domain)."
+    )
     LOG_SESSION_LOAD_SUCCESS = "Successfully logged in using the loaded session data."
     LOG_SESSION_LOAD_FAILED = "Session loaded but verification failed."
     LOG_SESSION_LOAD_ERROR = "Could not load session from {session_file}: {e}. A new session will be created."
     LOG_SESSION_VERIFY_FAILED = "Session verification request failed: {e}"
+    LOG_SESSION_NO_FORM_KEY = (
+        "form_key not present in user_session payload; "
+        "client will fetch it on first use."
+    )
     LOG_NO_KNOWN_COOKIE_TO_SAVE = "Could not find a known session cookie to save."
     LOG_SAVED_SESSION = "Saved encrypted session to {session_file}."
 
@@ -83,6 +109,9 @@ class InstapaperAuthenticator:
         self.fernet = Fernet(self.key)
         self.username = username
         self.password = password
+        # Captured from /data/user_session during verification; handed to
+        # the API client so it does not need to re-fetch it.
+        self.form_key: str | None = None
 
     def login(self) -> bool:
         """
@@ -120,6 +149,8 @@ class InstapaperAuthenticator:
                 if len(parts) == self.COOKIE_PART_COUNT:
                     name, value, domain = parts
                     self.session.cookies.set(name, value, domain=domain)
+                else:
+                    logging.warning(self.LOG_MALFORMED_COOKIE_LINE)
 
             if self.session.cookies and self._verify_session():
                 logging.info(self.LOG_SESSION_LOAD_SUCCESS)
@@ -138,17 +169,50 @@ class InstapaperAuthenticator:
             return False
 
     def _verify_session(self) -> bool:
-        """Checks if the current session is valid by making a request."""
+        """Checks if the current session is valid via /data/user_session.
+
+        The previous check (GET /u, asserting "login_form" was absent) no
+        longer works because /u returns 200 regardless of login state.
+        /data/user_session returns a JSON payload containing a "user" object
+        only for authenticated sessions, so it is a reliable probe. As a
+        side effect, the form_key issued in the same payload is captured so
+        it can be handed to the API client without a second request.
+        """
+        self.form_key = None
         try:
+            # Network errors only — response parsing is handled below.
             verify_response = self.session.get(
                 self.INSTAPAPER_VERIFY_URL,
+                headers=self.VERIFY_HEADERS,
                 timeout=self.REQUEST_TIMEOUT,
             )
-            verify_response.raise_for_status()
-            return self.LOGIN_FORM_IDENTIFIER not in verify_response.text
         except requests.RequestException as e:
             logging.error(self.LOG_SESSION_VERIFY_FAILED.format(e=e))
             return False
+
+        if not verify_response.ok:
+            logging.error(
+                self.LOG_SESSION_VERIFY_NON_OK.format(
+                    status_code=verify_response.status_code
+                )
+            )
+            return False
+
+        try:
+            data = verify_response.json()
+        except ValueError:
+            logging.error(self.LOG_SESSION_VERIFY_NOT_JSON)
+            return False
+
+        user = data.get("user") if isinstance(data, dict) else None
+        if not isinstance(user, dict):
+            logging.error(self.LOG_SESSION_VERIFY_NO_USER)
+            return False
+
+        self.form_key = user.get("form_key")
+        if not self.form_key:
+            logging.debug(self.LOG_SESSION_NO_FORM_KEY)
+        return True
 
     def _fetch_csrf_token(self) -> tuple[bool, str | None]:
         """Fetches the CSRF token via a preflight GET to the login page.
