@@ -480,8 +480,10 @@ class InstapaperAuthenticator:
         is already Fernet-encrypted with owner-only permissions, and cookies
         such as _xsrf may be required for the restored session to behave
         like the original browser context. The v2 JSON payload is immune to
-        special characters in cookie values. The write is fsynced and then
-        verified by re-reading and decrypting the file from disk.
+        special characters in cookie values. The write is atomic (temp file
+        in the same directory, fsynced, then os.replace over the target),
+        fsynced, chmod'd before replace, and then verified by re-reading
+        and decrypting the file from disk.
         """
         # Iterating a RequestsCookieJar yields Cookie objects at runtime,
         # but its type stubs declare Iterator[str]; cast for mypy.
@@ -507,14 +509,22 @@ class InstapaperAuthenticator:
         encrypted_data = self.fernet.encrypt(payload.encode("utf-8"))
 
         self.session_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.session_file, "wb") as f:
-            f.write(encrypted_data)
-            # Force the write to stable storage so the disk re-read check
-            # below actually validates the persisted bytes.
-            f.flush()
-            os.fsync(f.fileno())
+        tmp_file = self.session_file.with_suffix(self.session_file.suffix + ".tmp")
+        try:
+            # Write to a temp file in the same directory so os.replace below
+            # is atomic (same filesystem). The real path never exists in a
+            # partially-written state.
+            with open(tmp_file, "wb") as f:
+                f.write(encrypted_data)
+                f.flush()
+                os.fsync(f.fileno())
+            # Set permissions on the temp file before the rename so the final
+            # file never exists with lax defaults.
+            os.chmod(tmp_file, stat.S_IRUSR | stat.S_IWUSR)
+            os.replace(tmp_file, self.session_file)
+        finally:
+            tmp_file.unlink(missing_ok=True)
 
-        os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
         logging.info(self.LOG_SAVED_SESSION.format(session_file=self.session_file))
         self._verify_saved_session(cookies_payload)
 

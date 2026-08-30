@@ -792,15 +792,22 @@ def test_mask_cookie_header_token_without_separator():
 
 
 def test_verification_debug_log_is_redacted(authenticator, caplog):
-    """Verification debug logs must contain masked cookie values and no
-    response body content (which includes the form_key)."""
-    authenticator.session.cookies.set(
-        "pfus", "supersecretvalue", domain=".instapaper.com"
-    )
+    """Verification debug logs must NOT contain any full cookie value
+    (pfus/pfps/pfhs/_xsrf) or the form_key; only masked forms appear, and
+    the response body is never logged."""
+    secrets = {
+        "pfus": "supersecretvalue1",
+        "pfps": "supersecretvalue2",
+        "pfhs": "supersecretvalue3",
+        "_xsrf": "supe_xsrf_secret",
+    }
+    for name, value in secrets.items():
+        authenticator.session.cookies.set(name, value, domain=".instapaper.com")
+
     with requests_mock.Mocker() as m:
         m.get(
             INSTAPAPER_USER_SESSION_URL,
-            json={"user": {"username": "me", "form_key": "topsecretkey"}},
+            json={"user": {"username": "me", "form_key": "topsecretformkey"}},
         )
         with caplog.at_level(logging.DEBUG):
             assert authenticator._verify_session() is True
@@ -808,9 +815,14 @@ def test_verification_debug_log_is_redacted(authenticator, caplog):
     debug_text = "\n".join(
         r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG
     )
-    assert "supersecretvalue" not in debug_text
-    assert "topsecretkey" not in debug_text
-    assert "pfus=supe...alue" in debug_text
+    for full in secrets.values():
+        assert full not in debug_text
+    assert "topsecretformkey" not in debug_text
+    # Masked forms present.
+    assert "pfus=supe...lue1" in debug_text
+    assert "pfps=supe...lue2" in debug_text
+    assert "pfhs=supe...lue3" in debug_text
+    assert "_xsrf=supe...cret" in debug_text
     assert "body_bytes=" in debug_text
     assert "body=" not in debug_text
 
@@ -879,3 +891,90 @@ def test_dump_session_tolerates_malformed_v2_entries(authenticator, session_file
 
     lines = authenticator.dump_session()
     assert lines == ["pfus=abcd...mnop (.instapaper.com)"]
+
+
+def test_self_check_distinguishes_same_name_different_path(
+    authenticator, session_file, caplog
+):
+    """Two cookies sharing name+domain but with different paths are distinct:
+    both round-trip, and corrupting one path is detected by the self-check
+    (which keys on (name, domain, path), not just (name, domain))."""
+    authenticator.session.cookies.set(
+        "pfus", "u-root", domain=".instapaper.com", path="/"
+    )
+    authenticator.session.cookies.set(
+        "pfus", "u-data", domain=".instapaper.com", path="/data"
+    )
+    authenticator._save_session()
+
+    # Both path variants must be persisted.
+    raw = authenticator._parse_session_payload(
+        authenticator.fernet.decrypt(session_file.read_bytes()).decode("utf-8")
+    )
+    by_path = {c["path"]: c["value"] for c in raw}
+    assert by_path == {"/": "u-root", "/data": "u-data"}
+
+    # Corrupt only the /data entry's path value on disk.
+    evil = (
+        '{"version": 2, "cookies": ['
+        '{"name": "pfus", "value": "u-root", "domain": ".instapaper.com", '
+        '"path": "/", "secure": false},'
+        '{"name": "pfus", "value": "u-data", "domain": ".instapaper.com", '
+        '"path": "/HACKED", "secure": false}'
+        "]}"
+    )
+    session_file.write_bytes(authenticator.fernet.encrypt(evil.encode("utf-8")))
+
+    # Intended payload (as _save_session would have written it).
+    intended = [
+        {
+            "name": "pfus",
+            "value": "u-root",
+            "domain": ".instapaper.com",
+            "path": "/",
+            "secure": False,
+        },
+        {
+            "name": "pfus",
+            "value": "u-data",
+            "domain": ".instapaper.com",
+            "path": "/data",
+            "secure": False,
+        },
+    ]
+    with caplog.at_level(logging.WARNING):
+        authenticator._verify_saved_session(intended)
+        assert "Post-save self-check failed" in caplog.text
+
+
+def test_session_file_has_secure_permissions_and_no_tmp_residue(
+    authenticator, session_file
+):
+    """The atomic write preserves 0600 permissions and leaves no temp file."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator._save_session()
+
+    file_mode = session_file.stat().st_mode
+    assert (
+        file_mode & (stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        == stat.S_IRUSR | stat.S_IWUSR
+    )
+    assert session_file.with_suffix(session_file.suffix + ".tmp").exists() is False
+
+
+def test_save_session_cleans_up_temp_file_on_replace_failure(
+    authenticator, session_file, monkeypatch
+):
+    """If os.replace fails, the temp file is cleaned up and the target is not
+    left in a partial state."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+
+    def failing_replace(src, dst):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr("os.replace", failing_replace)
+    with pytest.raises(OSError, match="simulated replace failure"):
+        authenticator._save_session()
+    # Temp file cleaned up; no real session file written.
+    assert session_file.with_suffix(session_file.suffix + ".tmp").exists() is False
+    assert session_file.exists() is False
