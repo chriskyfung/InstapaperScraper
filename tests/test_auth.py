@@ -1,5 +1,6 @@
 import logging
 import stat
+import unittest.mock
 from unittest.mock import MagicMock
 from urllib.parse import parse_qs
 
@@ -557,3 +558,111 @@ def test_verify_session_fallback_also_rejected(authenticator):
         )
         assert authenticator._verify_session() is False
         assert m.call_count == 2
+
+
+def test_load_session_returns_false_when_file_missing(authenticator):
+    """_load_session returns False without touching the network when the
+    session file does not exist."""
+    assert authenticator._load_session() is False
+
+
+def test_load_session_legacy_blank_lines_skipped(authenticator, session_file):
+    """Blank lines in a legacy v1 payload are skipped."""
+    legacy = "\npfus:user123:.instapaper.com\n\n"
+    encrypted = authenticator.fernet.encrypt(legacy.encode("utf-8"))
+    session_file.write_bytes(encrypted)
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "user123", "form_key": "k"}},
+        )
+        assert authenticator._load_session() is True
+    assert authenticator.session.cookies.get("pfus") == "user123"
+
+
+def test_verify_session_fallback_network_error(authenticator, caplog):
+    """If the minimal-cookie retry itself raises, verification is False."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [
+                {"status_code": 401, "text": "401"},
+                {"exc": requests.exceptions.ConnectionError("boom")},
+            ],
+        )
+        with caplog.at_level(logging.ERROR):
+            assert authenticator._verify_session() is False
+            assert "Session verification request failed: boom" in caplog.text
+
+
+def test_verify_session_success_without_form_key(authenticator, caplog):
+    """A valid user object without a form_key still verifies, with a debug log."""
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL, json={"user": {"username": "me"}})
+        with caplog.at_level(logging.DEBUG):
+            assert authenticator._verify_session() is True
+            assert authenticator.form_key is None
+            assert "form_key not present in user_session payload" in caplog.text
+
+
+def test_save_session_self_check_detects_mismatch(authenticator, session_file, caplog):
+    """If the file does not read back identically, a warning is logged."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+
+    original_parse = authenticator._parse_session_payload
+
+    def tampered_parse(data):
+        result = original_parse(data)
+        for cookie in result:
+            cookie["value"] = "CORRUPTED"
+        return result
+
+    with unittest.mock.patch.object(
+        authenticator, "_parse_session_payload", side_effect=tampered_parse
+    ):
+        with caplog.at_level(logging.WARNING):
+            authenticator._save_session()
+            assert "Post-save self-check failed" in caplog.text
+
+
+def test_save_session_self_check_handles_exception(authenticator, session_file, caplog):
+    """If the self-check itself cannot run, a warning is logged, not raised."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+
+    def failing_decrypt(*args, **kwargs):
+        raise ValueError("simulated decrypt failure")
+
+    with unittest.mock.patch.object(
+        authenticator.fernet, "decrypt", side_effect=failing_decrypt
+    ):
+        with caplog.at_level(logging.WARNING):
+            authenticator._save_session()
+            assert "Post-save self-check could not run" in caplog.text
+    # The session file itself was still written.
+    assert session_file.exists()
+
+
+def test_dump_session_corrupted_file(authenticator, session_file):
+    """A session file that cannot be decrypted yields a masked error line."""
+    session_file.write_bytes(b"not encrypted data")
+    (line,) = authenticator.dump_session()
+    assert line.startswith("<could not read session file:")
+
+
+def test_dump_session_empty_cookies(authenticator, session_file):
+    """A payload with no valid cookie lines reports the empty state."""
+    encrypted = authenticator.fernet.encrypt(b"\n")
+    session_file.write_bytes(encrypted)
+    assert authenticator.dump_session() == ["<session file contains no cookies>"]
+
+
+def test_dump_session_masks_short_values(authenticator, session_file):
+    """Values of 8 characters or fewer are shown unmasked."""
+    authenticator.session.cookies.set("pfus", "short", domain=".instapaper.com")
+    authenticator._save_session()
+    (line,) = authenticator.dump_session()
+    assert line == "pfus=short (.instapaper.com)"
