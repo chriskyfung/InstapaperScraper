@@ -17,6 +17,25 @@ from .constants import (
 )
 
 
+# --- Log Redaction Helper ---
+def _mask_cookie_header(header: str) -> str:
+    """Masks cookie values in a Cookie header for safe logging.
+
+    Values longer than 8 characters become name=abcd...wxyz; shorter ones
+    are fully redacted. Tokens without an '=' separator are kept as-is.
+    """
+    parts = []
+    for pair in header.split("; "):
+        name, separator, value = pair.partition("=")
+        if not separator:
+            parts.append(name)
+        elif len(value) <= 8:
+            parts.append(f"{name}=<redacted>")
+        else:
+            parts.append(f"{name}={value[:4]}...{value[-4:]}")
+    return "; ".join(parts)
+
+
 # --- Encryption Helper ---
 def get_encryption_key(key_file: str | Path) -> bytes:
     """
@@ -107,7 +126,7 @@ class InstapaperAuthenticator:
     )
     LOG_VERIFY_DEBUG = (
         "Verification attempt: url=%s status=%s content_type=%s "
-        "cookies_sent=%.200s body=%.200s"
+        "body_bytes=%s cookies_sent=%s"
     )
     LOG_SESSION_NO_FORM_KEY = (
         "form_key not present in user_session payload; "
@@ -320,14 +339,23 @@ class InstapaperAuthenticator:
         return "; ".join(f"{name}={values[name]}" for name in sorted(values))
 
     def _log_verification_attempt(self, response: requests.Response) -> None:
-        """Logs request/response details of a verification attempt."""
+        """Logs request/response details of a verification attempt.
+
+        Cookie values are masked and the response body is never logged:
+        both contain credential material (session cookies and the
+        form_key) that must not leak into logs or support bundles.
+        """
+        cookie_header = response.request.headers.get("Cookie")
+        masked_cookies = (
+            _mask_cookie_header(cookie_header) if cookie_header else "<none>"
+        )
         logging.debug(
             self.LOG_VERIFY_DEBUG,
             response.request.url,
             response.status_code,
             response.headers.get("content-type"),
-            response.request.headers.get("Cookie", "<none>"),
-            response.text,
+            len(response.content),
+            masked_cookies,
         )
 
     def _parse_verification(self, response: requests.Response) -> bool:

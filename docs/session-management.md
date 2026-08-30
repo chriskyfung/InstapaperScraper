@@ -95,8 +95,10 @@ stale `_xsrf`) was interfering. If both attempts fail, the stored cookie
 values themselves are stale or corrupted.
 
 Every attempt is logged at DEBUG level (`Verification attempt: ...`) with
-the URL, status code, content type, the exact outgoing `Cookie` header, and
-a response body snippet.
+the URL, status code, content type, response body size, and the outgoing
+`Cookie` header with **values masked** (`pfus=abcd...wxyz`). Full cookie
+values and the response body (which contains the `form_key`) are never
+logged; use `--dump-session` for a masked value comparison instead.
 
 ## User-Agent configuration
 

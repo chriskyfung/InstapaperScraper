@@ -773,3 +773,43 @@ def test_verify_session_fallback_sends_empty_valued_cookie(authenticator):
         )
         assert authenticator._verify_session() is True
         assert m.request_history[1].headers["Cookie"].endswith("pfus=")
+
+
+def test_mask_cookie_header():
+    from instapaper_scraper.auth import _mask_cookie_header
+
+    header = "pfus=abcdefghijklmnop; pfps=short; pfhs="
+    masked = _mask_cookie_header(header)
+    assert masked == "pfus=abcd...mnop; pfps=<redacted>; pfhs=<redacted>"
+    # Full values never survive masking.
+    assert "abcdefghijklmnop" not in masked
+
+
+def test_mask_cookie_header_token_without_separator():
+    from instapaper_scraper.auth import _mask_cookie_header
+
+    assert _mask_cookie_header("not-a-cookie") == "not-a-cookie"
+
+
+def test_verification_debug_log_is_redacted(authenticator, caplog):
+    """Verification debug logs must contain masked cookie values and no
+    response body content (which includes the form_key)."""
+    authenticator.session.cookies.set(
+        "pfus", "supersecretvalue", domain=".instapaper.com"
+    )
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "me", "form_key": "topsecretkey"}},
+        )
+        with caplog.at_level(logging.DEBUG):
+            assert authenticator._verify_session() is True
+
+    debug_text = "\n".join(
+        r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG
+    )
+    assert "supersecretvalue" not in debug_text
+    assert "topsecretkey" not in debug_text
+    assert "pfus=supe...alue" in debug_text
+    assert "body_bytes=" in debug_text
+    assert "body=" not in debug_text
