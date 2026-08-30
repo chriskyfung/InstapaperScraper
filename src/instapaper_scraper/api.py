@@ -38,6 +38,7 @@ class InstapaperClient:
     # Environment variable names
     ENV_MAX_RETRIES = "MAX_RETRIES"
     ENV_BACKOFF_FACTOR = "BACKOFF_FACTOR"
+    ENV_USER_AGENT = "INSTAPAPER_USER_AGENT"
 
     # Default values
     DEFAULT_MAX_RETRIES = 3
@@ -59,6 +60,16 @@ class InstapaperClient:
         "content-type": "application/json",
         "x-requested-with": "XMLHttpRequest",
     }
+
+    # A browser-like User-Agent; the default python-requests UA can be
+    # rejected by anti-bot layers on the /data/* endpoints. Chrome on
+    # Windows is used as a neutral, statistically common fingerprint.
+    # Override via the INSTAPAPER_USER_AGENT env var or the user_agent
+    # constructor argument.
+    DEFAULT_USER_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+    )
 
     # Maps folder ids to special section types (liked, archive, etc.)
     SPECIAL_SECTIONS = SPECIAL_SECTIONS
@@ -92,6 +103,7 @@ class InstapaperClient:
         self,
         session: requests.Session,
         form_key: str | None = None,
+        user_agent: str | None = None,
     ):
         """
         Initializes the client with a requests Session.
@@ -100,9 +112,18 @@ class InstapaperClient:
             form_key: A pre-fetched x-form-key (e.g. captured by the
                 authenticator during session verification). If omitted, the
                 client fetches one from /data/user_session on first use.
+            user_agent: User-Agent header to send with API requests. Falls
+                back to the INSTAPAPER_USER_AGENT environment variable, then
+                to DEFAULT_USER_AGENT. Override this if the default is
+                blocked or you prefer a different fingerprint.
         """
         self.session = session
         self._form_key: str | None = form_key
+        # A plain `or` chain keeps the type `str` for mypy (os.getenv's
+        # stubs return `str | None` even with an explicit default).
+        self.user_agent = (
+            user_agent or os.getenv(self.ENV_USER_AGENT) or self.DEFAULT_USER_AGENT
+        )
 
         try:
             self.max_retries = int(
@@ -127,6 +148,7 @@ class InstapaperClient:
     def _get_headers(self) -> dict[str, str]:
         """Builds the headers dict for API requests, including x-form-key."""
         headers = dict(self.HEADERS)
+        headers["User-Agent"] = self.user_agent
         if self._form_key:
             headers["x-form-key"] = self._form_key
         return headers
@@ -140,6 +162,8 @@ class InstapaperClient:
         # with the authenticator's verification call to this endpoint;
         # the session cookies provide auth.
         headers = dict(XHR_HEADERS)
+
+        headers["User-Agent"] = self.user_agent
 
         try:
             response = self.session.get(

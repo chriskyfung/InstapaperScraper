@@ -810,3 +810,38 @@ def test_rich_metadata_included(client, session):
         assert articles[0]["is_archived"] is False
         assert articles[0]["tags"] == ["tag1"]
         assert articles[0]["notes"] == []
+
+
+class TestUserAgent:
+    """Tests for User-Agent resolution (argument > env var > default)."""
+
+    def test_default_user_agent(self, session):
+        client = InstapaperClient(session)
+        assert client.user_agent == InstapaperClient.DEFAULT_USER_AGENT
+
+    def test_user_agent_argument_wins(self, session, monkeypatch):
+        monkeypatch.setenv("INSTAPAPER_USER_AGENT", "env-ua")
+        client = InstapaperClient(session, user_agent="explicit-ua")
+        assert client.user_agent == "explicit-ua"
+
+    def test_user_agent_env_var(self, session, monkeypatch):
+        monkeypatch.setenv("INSTAPAPER_USER_AGENT", "env-ua")
+        client = InstapaperClient(session)
+        assert client.user_agent == "env-ua"
+
+    def test_headers_include_user_agent(self, client):
+        headers = client._get_headers()
+        assert headers["User-Agent"] == client.user_agent
+
+    def test_form_key_request_sends_user_agent(self, session, requests_mock):
+        requests_mock.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"form_key": "key123"}},
+        )
+        client = InstapaperClient(session)
+        client._fetch_form_key()
+        assert client._form_key == "key123"
+        assert requests_mock.last_request.headers["User-Agent"] == client.user_agent
+        assert (
+            requests_mock.last_request.headers["x-requested-with"] == "XMLHttpRequest"
+        )
