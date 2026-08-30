@@ -162,7 +162,6 @@ class InstapaperClient:
         # with the authenticator's verification call to this endpoint;
         # the session cookies provide auth.
         headers = dict(XHR_HEADERS)
-
         headers["User-Agent"] = self.user_agent
 
         try:

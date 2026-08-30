@@ -430,11 +430,7 @@ def test_load_session_skips_malformed_cookie_lines(authenticator, session_file, 
 
 
 def test_load_session_colon_in_cookie_value(session, session_file, key_file):
-    """Documents a known limitation of the name:value:domain line format:
-    a cookie value containing ':' is truncated at the first colon (the
-    remainder is treated as the domain). Auth values (pfus/pfps/pfhs) are
-    hex tokens in practice, so this does not occur for them; if a colon-
-    bearing cookie ever mattered, the file format would need escaping."""
+    """The v2 JSON format preserves cookie values containing ':'."""
     authenticator = InstapaperAuthenticator(
         session, session_file=str(session_file), key_file=str(key_file)
     )
@@ -451,4 +447,113 @@ def test_load_session_colon_in_cookie_value(session, session_file, key_file):
             json={"user": {"username": "u", "form_key": "k"}},
         )
         assert new_auth._load_session() is True
-    assert new_session.cookies.get("pfus") == "a"
+    assert new_session.cookies.get("pfus") == "a:b:c"
+
+
+def test_save_writes_v2_json_with_cookie_attributes(authenticator, session_file):
+    """_save_session persists all cookie attributes in a v2 JSON payload."""
+    authenticator.session.cookies.set(
+        "pfus", "u1", domain=".instapaper.com", path="/", secure=True
+    )
+    authenticator._save_session()
+
+    import json as json_module
+
+    decrypted = authenticator.fernet.decrypt(session_file.read_bytes()).decode("utf-8")
+    payload = json_module.loads(decrypted)
+    assert payload["version"] == 2
+    (cookie,) = payload["cookies"]
+    assert cookie == {
+        "name": "pfus",
+        "value": "u1",
+        "domain": ".instapaper.com",
+        "path": "/",
+        "secure": True,
+    }
+
+
+def test_load_session_legacy_line_format_still_works(authenticator, session_file):
+    """A v1 legacy session file still loads (backward compatibility)."""
+    legacy = "pfus:user123:.instapaper.com\n"
+    encrypted = authenticator.fernet.encrypt(legacy.encode("utf-8"))
+    session_file.write_bytes(encrypted)
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "user123", "form_key": "k"}},
+        )
+        assert authenticator._load_session() is True
+    assert authenticator.session.cookies.get("pfus") == "user123"
+
+
+def test_dump_session_masks_values(authenticator, session_file):
+    """dump_session returns masked summaries without leaking full values."""
+    authenticator.session.cookies.set(
+        "pfus", "abcdefghijklmnop", domain=".instapaper.com"
+    )
+    authenticator._save_session()
+
+    lines = authenticator.dump_session()
+    (line,) = lines
+    assert line.startswith("pfus=abcd...mnop")
+    assert "abcdefghijklmnop" not in line
+
+
+def test_dump_session_missing_file(authenticator):
+    assert authenticator.dump_session() == [
+        f"<no session file at {authenticator.session_file}>"
+    ]
+
+
+def test_verify_session_fallback_to_minimal_cookies(authenticator):
+    """When the full-jar request is rejected, verification retries with an
+    explicit Cookie header containing only pfus/pfps/pfhs (mirroring the
+    known-good curl) and succeeds."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
+    # Extra cookie that must NOT appear in the fallback request.
+    authenticator.session.cookies.set("_xsrf", "stale", domain="www.instapaper.com")
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [
+                {"status_code": 401, "text": "401: Unauthorized"},
+                {
+                    "json": {"user": {"username": "me", "form_key": "fk9"}},
+                },
+            ],
+        )
+        assert authenticator._verify_session() is True
+        assert authenticator.form_key == "fk9"
+
+        fallback_cookie = m.request_history[1].headers["Cookie"]
+        assert fallback_cookie == "pfhs=h1; pfps=p1; pfus=u1"
+        # First attempt used the normal jar path, stale _xsrf included.
+        assert "_xsrf=stale" in m.request_history[0].headers["Cookie"]
+
+
+def test_verify_session_fallback_without_auth_cookies_fails(authenticator, caplog):
+    """If none of the pf* cookies are present, the fallback cannot fire."""
+    authenticator.session.cookies.set("_xsrf", "x", domain="www.instapaper.com")
+    with requests_mock.Mocker() as m:
+        m.get(INSTAPAPER_USER_SESSION_URL, status_code=401, text="401")
+        with caplog.at_level(logging.ERROR):
+            assert authenticator._verify_session() is False
+            assert "none of the required auth cookies" in caplog.text
+
+
+def test_verify_session_fallback_also_rejected(authenticator):
+    """If both attempts fail, verification is False (stale cookie values)."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [{"status_code": 401, "text": "401"}, {"status_code": 401, "text": "401"}],
+        )
+        assert authenticator._verify_session() is False
+        assert m.call_count == 2

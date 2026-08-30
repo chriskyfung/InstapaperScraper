@@ -69,6 +69,29 @@ def load_config(config_path_str: str | None = None) -> dict[str, Any] | None:
     return None
 
 
+def _dump_stored_session(args: argparse.Namespace) -> None:
+    """Prints a masked summary of the stored session cookies and exits."""
+    session = requests.Session()
+    session_file = _resolve_path(
+        args.session_file,
+        DEFAULT_SESSION_FILENAME,
+        CONFIG_DIR / DEFAULT_SESSION_FILENAME,
+    )
+    key_file = _resolve_path(
+        args.key_file,
+        DEFAULT_KEY_FILENAME,
+        CONFIG_DIR / DEFAULT_KEY_FILENAME,
+    )
+    authenticator = InstapaperAuthenticator(
+        session,
+        session_file=session_file,
+        key_file=key_file,
+    )
+    print(f"Session file: {session_file}")
+    for line in authenticator.dump_session():
+        print(f"  {line}")
+
+
 def main() -> None:
     """
     Main entry point for the Instapaper scraper CLI.
@@ -99,6 +122,12 @@ def main() -> None:
     )
     parser.add_argument("--session-file", help="Path to the encrypted session file.")
     parser.add_argument("--key-file", help="Path to the session key file.")
+    parser.add_argument(
+        "--dump-session",
+        action="store_true",
+        help="Print a masked summary of the stored session cookies and exit "
+        "(for comparing against browser DevTools).",
+    )
     parser.add_argument("--username", help="Instapaper username.")
     parser.add_argument("--password", help="Instapaper password.")
     parser.add_argument(
@@ -126,6 +155,10 @@ def main() -> None:
         help="Folder key, ID, or slug to scrape. Use 'none' to disable folder mode.",
     )
     args = parser.parse_args()
+
+    if args.dump_session:
+        _dump_stored_session(args)
+        return
 
     config = load_config(args.config_path)
     folders = config.get("folders", []) if config else []

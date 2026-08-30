@@ -1,10 +1,11 @@
 import getpass
+import json
 import logging
 import os
 import stat
 from http.cookiejar import Cookie
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import requests
 from cryptography.fernet import Fernet
@@ -52,6 +53,9 @@ class InstapaperAuthenticator:
 
     # Session/Cookie related
     COOKIE_PART_COUNT = 3
+    # Storage format v2: a JSON payload (robust against special characters
+    # in cookie values). v1 was the legacy "name:value:domain" line format.
+    SESSION_FORMAT_VERSION = 2
     REQUIRED_COOKIES = {"pfus", "pfps", "pfhs"}
     LOGIN_SUCCESS_PATH = "/home"
     XSRF_COOKIE_NAME = "_xsrf"
@@ -85,10 +89,34 @@ class InstapaperAuthenticator:
     LOG_MALFORMED_COOKIE_LINE = (
         "Skipping malformed cookie line in session file (expected name:value:domain)."
     )
+    LOG_LEGACY_SESSION_FORMAT = (
+        "Session file uses the legacy line format; it will be upgraded "
+        "to JSON on the next save."
+    )
+    LOG_SAVE_VERIFY_FAILED = (
+        "Post-save self-check failed: the session file does not read back "
+        "identically. The stored session may be corrupted."
+    )
     LOG_SESSION_LOAD_SUCCESS = "Successfully logged in using the loaded session data."
     LOG_SESSION_LOAD_FAILED = "Session loaded but verification failed."
     LOG_SESSION_LOAD_ERROR = "Could not load session from {session_file}: {e}. A new session will be created."
     LOG_SESSION_VERIFY_FAILED = "Session verification request failed: {e}"
+    LOG_SESSION_RETRY_MINIMAL = (
+        "Retrying session verification with minimal cookie set "
+        "(pfus/pfps/pfhs only), mirroring the browser request."
+    )
+    LOG_SESSION_MINIMAL_OK = (
+        "Session verified with minimal cookie set; the full cookie jar "
+        "(e.g. a stale _xsrf) may be interfering with /data endpoints."
+    )
+    LOG_SESSION_MINIMAL_NO_COOKIES = (
+        "Cannot retry verification: none of the required auth cookies "
+        "(pfus/pfps/pfhs) are present."
+    )
+    LOG_VERIFY_DEBUG = (
+        "Verification attempt: url=%s status=%s content_type=%s "
+        "cookies_sent=%.200s body=%.200s"
+    )
     LOG_SESSION_NO_FORM_KEY = (
         "form_key not present in user_session payload; "
         "client will fetch it on first use."
@@ -142,17 +170,16 @@ class InstapaperAuthenticator:
                 encrypted_data = f.read()
 
             decrypted_data = self.fernet.decrypt(encrypted_data).decode("utf-8")
+            cookies = self._parse_session_payload(decrypted_data)
 
-            for line in decrypted_data.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                parts = line.split(":", 2)
-                if len(parts) == self.COOKIE_PART_COUNT:
-                    name, value, domain = parts
-                    self.session.cookies.set(name, value, domain=domain)
-                else:
-                    logging.warning(self.LOG_MALFORMED_COOKIE_LINE)
+            for cookie in cookies:
+                self.session.cookies.set(
+                    cookie["name"],
+                    cookie["value"],
+                    domain=cookie["domain"],
+                    path=cookie.get("path", "/"),
+                    secure=cookie.get("secure", False),
+                )
 
             if self.session.cookies and self._verify_session():
                 logging.info(self.LOG_SESSION_LOAD_SUCCESS)
@@ -170,38 +197,144 @@ class InstapaperAuthenticator:
             self.session_file.unlink(missing_ok=True)
             return False
 
+    def _parse_session_payload(self, decrypted_data: str) -> list[dict[str, Any]]:
+        """Parses a decrypted session payload into cookie dicts.
+
+        Supports the v2 JSON format and falls back to the v1 legacy
+        "name:value:domain" line format for backward compatibility.
+        """
+        try:
+            payload = json.loads(decrypted_data)
+        except ValueError:
+            payload = None
+
+        if isinstance(payload, dict) and isinstance(payload.get("cookies"), list):
+            return [
+                cookie
+                for cookie in payload["cookies"]
+                if isinstance(cookie, dict) and "name" in cookie and "value" in cookie
+            ]
+
+        # Legacy v1 line format.
+        logging.info(self.LOG_LEGACY_SESSION_FORMAT)
+        cookies: list[dict[str, Any]] = []
+        for line in decrypted_data.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split(":", 2)
+            if len(parts) == self.COOKIE_PART_COUNT:
+                name, value, domain = parts
+                cookies.append({"name": name, "value": value, "domain": domain})
+            else:
+                logging.warning(self.LOG_MALFORMED_COOKIE_LINE)
+        return cookies
+
     def _verify_session(self) -> bool:
         """Checks if the current session is valid via /data/user_session.
 
         The previous check (GET /u, asserting "login_form" was absent) no
         longer works because /u returns 200 regardless of login state.
         /data/user_session returns a JSON payload containing a "user" object
-        only for authenticated sessions, so it is a reliable probe. As a
-        side effect, the form_key issued in the same payload is captured so
+        only for authenticated sessions, so it is a reliable probe.
+
+        Two attempts are made:
+        1. A normal session request (full cookie jar, XHR headers).
+        2. If the first attempt is rejected, a retry that replicates the
+           proven-working minimal request exactly: an explicit Cookie header
+           containing only pfus/pfps/pfhs plus x-requested-with. This rules
+           out interference from other restored cookies (e.g. a stale
+           _xsrf) and from jar/cookie-policy quirks.
+
+        As a side effect, the form_key issued in the payload is captured so
         it can be handed to the API client without a second request.
         """
         self.form_key = None
+
+        response = self._user_session_request()
+        if response is not None and self._parse_verification(response):
+            return True
+
+        if response is not None and not response.ok:
+            logging.warning(self.LOG_SESSION_RETRY_MINIMAL)
+            minimal_response = self._minimal_user_session_request()
+            if minimal_response is not None:
+                if self._parse_verification(minimal_response):
+                    logging.info(self.LOG_SESSION_MINIMAL_OK)
+                    return True
+        return False
+
+    def _user_session_request(self) -> requests.Response | None:
+        """Normal verification request using the session's cookie jar."""
         try:
-            # Network errors only — response parsing is handled below.
-            verify_response = self.session.get(
+            # Network errors only — response parsing is handled by the caller.
+            response = self.session.get(
                 self.INSTAPAPER_VERIFY_URL,
                 headers=self.VERIFY_HEADERS,
                 timeout=self.REQUEST_TIMEOUT,
             )
         except requests.RequestException as e:
             logging.error(self.LOG_SESSION_VERIFY_FAILED.format(e=e))
-            return False
+            return None
+        self._log_verification_attempt(response)
+        return response
 
-        if not verify_response.ok:
+    def _minimal_user_session_request(self) -> requests.Response | None:
+        """Fallback verification request with only the pf* auth cookies.
+
+        Replicates the known-good curl exactly: an explicit Cookie header
+        (which requests preserves as-is) with just pfus/pfps/pfhs. A bare
+        PreparedRequest is sent via the session's adapter so the cookie jar
+        cannot merge any other cookies into the header.
+        """
+        cookie_header = self._minimal_cookie_header()
+        if not cookie_header:
+            logging.error(self.LOG_SESSION_MINIMAL_NO_COOKIES)
+            return None
+
+        headers = dict(self.VERIFY_HEADERS)
+        headers["Cookie"] = cookie_header
+        try:
+            request = requests.Request(
+                "GET", self.INSTAPAPER_VERIFY_URL, headers=headers
+            ).prepare()
+            response = self.session.send(request, timeout=self.REQUEST_TIMEOUT)
+        except requests.RequestException as e:
+            logging.error(self.LOG_SESSION_VERIFY_FAILED.format(e=e))
+            return None
+        self._log_verification_attempt(response)
+        return response
+
+    def _minimal_cookie_header(self) -> str | None:
+        """Builds a Cookie header from only the required auth cookies."""
+        pairs = []
+        for name in sorted(self.REQUIRED_COOKIES):
+            value = self.session.cookies.get(name)
+            if value:
+                pairs.append(f"{name}={value}")
+        return "; ".join(pairs) if pairs else None
+
+    def _log_verification_attempt(self, response: requests.Response) -> None:
+        """Logs request/response details of a verification attempt."""
+        logging.debug(
+            self.LOG_VERIFY_DEBUG,
+            response.request.url,
+            response.status_code,
+            response.headers.get("content-type"),
+            response.request.headers.get("Cookie", "<none>"),
+            response.text,
+        )
+
+    def _parse_verification(self, response: requests.Response) -> bool:
+        """Interprets a /data/user_session response for session validity."""
+        if not response.ok:
             logging.error(
-                self.LOG_SESSION_VERIFY_NON_OK.format(
-                    status_code=verify_response.status_code
-                )
+                self.LOG_SESSION_VERIFY_NON_OK.format(status_code=response.status_code)
             )
             return False
 
         try:
-            data = verify_response.json()
+            data = response.json()
         except ValueError:
             logging.error(self.LOG_SESSION_VERIFY_NOT_JSON)
             return False
@@ -290,21 +423,31 @@ class InstapaperAuthenticator:
         All cookies are persisted (not just the pf* auth cookies): the file
         is already Fernet-encrypted with owner-only permissions, and cookies
         such as _xsrf may be required for the restored session to behave
-        like the original browser context.
+        like the original browser context. The v2 JSON payload is immune to
+        special characters in cookie values.
         """
         # Iterating a RequestsCookieJar yields Cookie objects at runtime,
         # but its type stubs declare Iterator[str]; cast for mypy.
-        cookies_to_save = cast("list[Cookie]", list(self.session.cookies))
+        jar_cookies = cast("list[Cookie]", list(self.session.cookies))
 
-        if not cookies_to_save:
+        if not jar_cookies:
             logging.warning(self.LOG_NO_KNOWN_COOKIE_TO_SAVE)
             return
 
-        cookie_data = ""
-        for cookie in cookies_to_save:
-            cookie_data += f"{cookie.name}:{cookie.value}:{cookie.domain}\n"
-
-        encrypted_data = self.fernet.encrypt(cookie_data.encode("utf-8"))
+        cookies_payload = [
+            {
+                "name": cookie.name,
+                "value": cookie.value,
+                "domain": cookie.domain,
+                "path": cookie.path,
+                "secure": bool(cookie.secure),
+            }
+            for cookie in jar_cookies
+        ]
+        payload = json.dumps(
+            {"version": self.SESSION_FORMAT_VERSION, "cookies": cookies_payload}
+        )
+        encrypted_data = self.fernet.encrypt(payload.encode("utf-8"))
 
         self.session_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.session_file, "wb") as f:
@@ -312,3 +455,56 @@ class InstapaperAuthenticator:
 
         os.chmod(self.session_file, stat.S_IRUSR | stat.S_IWUSR)
         logging.info(self.LOG_SAVED_SESSION.format(session_file=self.session_file))
+        self._verify_saved_session(encrypted_data, cookies_payload)
+
+    def _verify_saved_session(
+        self, encrypted_data: bytes, cookies_payload: list[dict[str, Any]]
+    ) -> None:
+        """Round-trip self-check: decrypt the file just written and compare."""
+        try:
+            decrypted = self.fernet.decrypt(encrypted_data).decode("utf-8")
+            read_back = self._parse_session_payload(decrypted)
+
+            def key(cookie: dict[str, Any]) -> tuple[str, str]:
+                return (cookie["name"], cookie.get("domain", ""))
+
+            written = sorted(cookies_payload, key=key)
+            read = sorted(read_back, key=key)
+            if [(c["name"], c["value"]) for c in written] != [
+                (c["name"], c["value"]) for c in read
+            ]:
+                logging.warning(self.LOG_SAVE_VERIFY_FAILED)
+        except Exception as e:
+            logging.warning(
+                "Post-save self-check could not run: %s. The stored session "
+                "may be corrupted.",
+                e,
+            )
+
+    def dump_session(self) -> list[str]:
+        """Returns masked one-line summaries of the stored session cookies.
+
+        Values are masked (first4...last4) so the output can be compared
+        against browser DevTools without exposing secrets.
+        """
+        if not self.session_file.exists():
+            return [f"<no session file at {self.session_file}>"]
+        try:
+            with open(self.session_file, "rb") as f:
+                encrypted_data = f.read()
+            decrypted = self.fernet.decrypt(encrypted_data).decode("utf-8")
+            cookies = self._parse_session_payload(decrypted)
+        except Exception as e:
+            return [f"<could not read session file: {e}>"]
+        if not cookies:
+            return ["<session file contains no cookies>"]
+        return [
+            f"{cookie['name']}={self._mask(cookie['value'])} ({cookie['domain']})"
+            for cookie in cookies
+        ]
+
+    @staticmethod
+    def _mask(value: str) -> str:
+        if len(value) <= 8:
+            return value
+        return f"{value[:4]}...{value[-4:]}"
