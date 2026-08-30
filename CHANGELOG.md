@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Two-stage Verification Fallback**: If verification with the full cookie jar is rejected, a retry is made with an explicit `Cookie` header containing only the auth cookies (`pfus`/`pfps`/`pfhs`), replicating the browser request exactly.
 - **`--dump-session` CLI Flag**: Prints a masked summary of the stored session cookies for troubleshooting.
-- **Post-save Self-check**: Every saved session file is decrypted and re-parsed immediately to detect storage corruption at write time.
+- **Post-save Self-check**: Every saved session file is fsynced, then re-read from disk, decrypted, and compared with what was written to detect partial writes or storage corruption at save time.
 - **Configurable User-Agent**: The `User-Agent` sent to the API can be set via the `INSTAPAPER_USER_AGENT` environment variable or the `InstapaperClient(user_agent=...)` argument (defaults to a browser-like UA).
 - **Documentation**: Added `docs/session-management.md` describing session storage, verification, and troubleshooting.
 

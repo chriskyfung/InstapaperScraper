@@ -106,6 +106,20 @@ on the `/data/*` endpoints, so the client sends a browser-like UA by default
 `InstapaperClient(session, user_agent=...)` or globally with the
 `INSTAPAPER_USER_AGENT` environment variable.
 
+### Keeping the default User-Agent fresh
+
+The default pins a specific Chrome major version, which goes stale as Chrome
+ships a new major roughly every 4 weeks. Maintenance guidance:
+
+- Check the current stable major at <https://endoflife.date/api/chrome.json>
+  (the first entry's `cycle` field) and bump the version in
+  `DEFAULT_USER_AGENT` when the pinned one is more than ~6 months old.
+- Prefer the **current stable** version. An older (stale-but-plausible)
+  version is mildly risky; a version **newer than any released stable** is a
+  strong bot signal and must never be used.
+- For long-lived deployments, pinning via `INSTAPAPER_USER_AGENT` lets you
+  control the fingerprint independently of library upgrades.
+
 ## Troubleshooting
 
 Use `--dump-session` to print a masked summary (first4...last4 of each
@@ -118,7 +132,7 @@ instapaper-scraper --dump-session
 
 | Log message | Meaning | Action |
 | --- | --- | --- |
-| `returned status 401` (both attempts) | Stored cookie values are stale, rotated or corrupted | Delete `.instapaper_session` and `.session_key`, log in once; the next run should reuse the fresh session |
+| `returned status 401` (both attempts) | Stored cookie values are stale, rotated or corrupted | Use `--dump-session` to compare the stored cookie values against your browser's DevTools; then delete `.instapaper_session` and `.session_key`, log in once, and the next run should reuse the fresh session |
 | `no user object in /data/user_session response` | Server answered but does not consider the session logged in | Same as above; if it persists with fresh values, compare `--dump-session` output with the browser |
 | `did not return JSON` | The endpoint returned HTML (its behavior changed) | Open an issue; the endpoint contract likely changed again |
 | `Session verified with minimal cookie set` (INFO) | The full jar interfered (likely a stale `_xsrf`) | Harmless; report if it happens on every run |
