@@ -100,6 +100,14 @@ The script authenticates using one of the following methods, in order of priorit
 
 > **Note on Security:** Your session file (`.instapaper_session`) and the encryption key (`.session_key`) are stored with secure permissions (read/write for the owner only) to protect your credentials.
 
+The session file stores all cookies in an encrypted JSON payload (format v2) and is verified against the API on each run, so subsequent runs reuse the stored session without prompting for credentials. To inspect the stored session (e.g. when troubleshooting reuse problems), print a masked summary of its cookies:
+
+```sh
+instapaper-scraper --dump-session
+```
+
+For details on session verification, storage format, and troubleshooting 401 errors, see [docs/session-management.md](docs/session-management.md).
+
 ### 📁 Folder and Field Configuration
 
 You can define and quickly access your Instapaper folders and set default output fields using a `config.toml` file. The scraper will look for this file in the following locations (in order of precedence):
