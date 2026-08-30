@@ -698,3 +698,35 @@ def test_save_session_propagates_fsync_errors(authenticator, session_file, monke
     monkeypatch.setattr("os.fsync", failing_fsync)
     with pytest.raises(OSError, match="simulated disk failure"):
         authenticator._save_session()
+
+
+def test_minimal_cookie_header_includes_empty_value(authenticator):
+    """A cookie that exists with an empty value is still sent in the
+    fallback header (presence, not truthiness)."""
+    authenticator.session.cookies.set("pfus", "", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
+    assert authenticator._minimal_cookie_header() == "pfhs=h1; pfps=p1; pfus="
+
+
+def test_minimal_cookie_header_includes_falsy_non_empty_value(authenticator):
+    """Values like '0' are always included."""
+    authenticator.session.cookies.set("pfus", "0", domain=".instapaper.com")
+    assert "pfus=0" in (authenticator._minimal_cookie_header() or "")
+
+
+def test_verify_session_fallback_sends_empty_valued_cookie(authenticator):
+    """End-to-end: an empty-valued pfus still lets the fallback fire."""
+    authenticator.session.cookies.set("pfus", "", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [
+                {"status_code": 401, "text": "401"},
+                {"json": {"user": {"username": "me", "form_key": "k"}}},
+            ],
+        )
+        assert authenticator._verify_session() is True
+        assert m.request_history[1].headers["Cookie"].endswith("pfus=")

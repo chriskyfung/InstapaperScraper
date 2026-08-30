@@ -299,12 +299,20 @@ class InstapaperAuthenticator:
 
     def _minimal_cookie_header(self) -> str | None:
         """Builds a Cookie header from only the required auth cookies."""
-        pairs = []
-        for name in sorted(self.REQUIRED_COOKIES):
-            value = self.session.cookies.get(name)
-            if value:
-                pairs.append(f"{name}={value}")
-        return "; ".join(pairs) if pairs else None
+        # Read the Cookie objects directly: RequestsCookieJar.get()
+        # normalizes an empty cookie value to None, so a get()-based
+        # lookup cannot distinguish a missing cookie from an empty one.
+        values: dict[str, str] = {}
+        jar = cast("list[Cookie]", list(self.session.cookies))
+        for cookie in jar:
+            if cookie.name in self.REQUIRED_COOKIES:
+                # Presence, not truthiness: an existing cookie with an
+                # empty value must still be sent (the server may key on
+                # its presence).
+                values[cookie.name] = cookie.value if cookie.value is not None else ""
+        if not values:
+            return None
+        return "; ".join(f"{name}={values[name]}" for name in sorted(values))
 
     def _log_verification_attempt(self, response: requests.Response) -> None:
         """Logs request/response details of a verification attempt."""
