@@ -2,7 +2,9 @@ import getpass
 import logging
 import os
 import stat
+from http.cookiejar import Cookie
 from pathlib import Path
+from typing import cast
 
 import requests
 from cryptography.fernet import Fernet
@@ -283,11 +285,16 @@ class InstapaperAuthenticator:
             return False
 
     def _save_session(self) -> None:
-        """Saves the current session cookies to an encrypted file."""
-        required_cookies = self.REQUIRED_COOKIES
-        cookies_to_save = [
-            c for c in self.session.cookies if c.name in required_cookies
-        ]
+        """Saves the current session cookies to an encrypted file.
+
+        All cookies are persisted (not just the pf* auth cookies): the file
+        is already Fernet-encrypted with owner-only permissions, and cookies
+        such as _xsrf may be required for the restored session to behave
+        like the original browser context.
+        """
+        # Iterating a RequestsCookieJar yields Cookie objects at runtime,
+        # but its type stubs declare Iterator[str]; cast for mypy.
+        cookies_to_save = cast("list[Cookie]", list(self.session.cookies))
 
         if not cookies_to_save:
             logging.warning(self.LOG_NO_KNOWN_COOKIE_TO_SAVE)
