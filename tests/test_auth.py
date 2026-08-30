@@ -389,18 +389,60 @@ def test_verify_session_success_captures_form_key(authenticator):
 
 
 def test_verify_session_fails_without_user_object(authenticator):
-    """A 200 response whose JSON lacks a user object is not a valid session."""
+    """A 200 response whose JSON lacks a user object fails on both attempts
+    (full jar and minimal cookies) and is not a valid session."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
     with requests_mock.Mocker() as m:
-        m.get(INSTAPAPER_USER_SESSION_URL, json={"error": "not logged in"})
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [
+                {"json": {"error": "not logged in"}},
+                {"json": {"error": "not logged in"}},
+            ],
+        )
         assert authenticator._verify_session() is False
         assert authenticator.form_key is None
+        assert m.call_count == 2  # fallback was attempted
 
 
 def test_verify_session_fails_on_non_json(authenticator):
-    """A 200 HTML response (e.g. a login page) fails verification."""
+    """A 200 HTML response (e.g. a login page) fails verification on both
+    attempts."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
     with requests_mock.Mocker() as m:
-        m.get(INSTAPAPER_USER_SESSION_URL, text="<html>login</html>")
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [
+                {"text": "<html>login</html>"},
+                {"text": "<html>login</html>"},
+            ],
+        )
         assert authenticator._verify_session() is False
+        assert m.call_count == 2
+
+
+def test_verify_session_fallback_rescues_no_user_response(authenticator):
+    """A 200-without-user response on the full jar still triggers the
+    minimal-cookie fallback, which can succeed (jar interference can
+    manifest as a degenerate 200 payload, not only a rejection)."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfps", "p1", domain=".instapaper.com")
+    authenticator.session.cookies.set("pfhs", "h1", domain=".instapaper.com")
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            [
+                {"json": {"error": "not logged in"}},
+                {"json": {"user": {"username": "me", "form_key": "fk1"}}},
+            ],
+        )
+        assert authenticator._verify_session() is True
+        assert authenticator.form_key == "fk1"
+        assert "pfus=u1" in m.request_history[1].headers["Cookie"]
 
 
 def test_verify_session_fails_on_non_ok(authenticator, caplog):
@@ -650,7 +692,8 @@ def test_dump_session_corrupted_file(authenticator, session_file):
     """A session file that cannot be decrypted yields a masked error line."""
     session_file.write_bytes(b"not encrypted data")
     (line,) = authenticator.dump_session()
-    assert line.startswith("<could not read session file:")
+    assert line.startswith("<could not read session file (")
+    assert ")" in line  # includes the exception type name
 
 
 def test_dump_session_empty_cookies(authenticator, session_file):

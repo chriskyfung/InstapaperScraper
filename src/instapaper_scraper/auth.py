@@ -232,11 +232,13 @@ class InstapaperAuthenticator:
 
         Two attempts are made:
         1. A normal session request (full cookie jar, XHR headers).
-        2. If the first attempt is rejected, a retry that replicates the
-           proven-working minimal request exactly: an explicit Cookie header
-           containing only pfus/pfps/pfhs plus x-requested-with. This rules
-           out interference from other restored cookies (e.g. a stale
-           _xsrf) and from jar/cookie-policy quirks.
+        2. If the first attempt fails in any way (non-OK status, non-JSON
+           body, or a payload without a user object), a retry that
+           replicates the proven-working minimal request exactly: an
+           explicit Cookie header containing only pfus/pfps/pfhs plus
+           x-requested-with. This rules out interference from other
+           restored cookies (e.g. a stale _xsrf) and from jar/cookie-policy
+           quirks, which can manifest as any of those failure modes.
 
         As a side effect, the form_key issued in the payload is captured so
         it can be handed to the API client without a second request.
@@ -247,7 +249,10 @@ class InstapaperAuthenticator:
         if response is not None and self._parse_verification(response):
             return True
 
-        if response is not None and not response.ok:
+        if response is not None:
+            # Any first-attempt failure (not just non-OK) triggers the
+            # fallback: jar interference can produce a 200 response that
+            # is HTML or lacks a user object, not only a rejection.
             logging.warning(self.LOG_SESSION_RETRY_MINIMAL)
             minimal_response = self._minimal_user_session_request()
             if minimal_response is not None:
@@ -502,7 +507,7 @@ class InstapaperAuthenticator:
             decrypted = self.fernet.decrypt(encrypted_data).decode("utf-8")
             cookies = self._parse_session_payload(decrypted)
         except Exception as e:
-            return [f"<could not read session file: {e}>"]
+            return [f"<could not read session file ({type(e).__name__}): {e}>"]
         if not cookies:
             return ["<session file contains no cookies>"]
         return [
