@@ -143,6 +143,7 @@ class InstapaperClient:
             )
             user_agent = self.DEFAULT_USER_AGENT
         self.user_agent = user_agent
+        logging.debug("Using Instapaper API User-Agent: %s", self.user_agent)
 
         try:
             self.max_retries = int(

@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -88,6 +89,8 @@ def _dump_stored_session(args: argparse.Namespace) -> None:
         key_file=key_file,
     )
     print(f"Session file: {session_file}")
+    user_agent = os.getenv("INSTAPAPER_USER_AGENT", InstapaperClient.DEFAULT_USER_AGENT)
+    print(f"User-Agent: {user_agent}")
     for line in authenticator.dump_session():
         print(f"  {line}")
 
