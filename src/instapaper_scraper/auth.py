@@ -477,14 +477,16 @@ class InstapaperAuthenticator:
             decrypted = self.fernet.decrypt(encrypted_on_disk).decode("utf-8")
             read_back = self._parse_session_payload(decrypted)
 
-            def key(cookie: dict[str, Any]) -> tuple[str, str]:
-                return (cookie["name"], cookie.get("domain", ""))
+            def key(cookie: dict[str, Any]) -> tuple[str, str, str]:
+                return (
+                    cookie["name"],
+                    cookie.get("domain", ""),
+                    cookie.get("path", "/"),
+                )
 
-            written = sorted(cookies_payload, key=key)
-            read = sorted(read_back, key=key)
-            if [(c["name"], c["value"]) for c in written] != [
-                (c["name"], c["value"]) for c in read
-            ]:
+            # Compare full dicts: value, domain, path and secure must all
+            # round-trip exactly for the stored session to be trustworthy.
+            if sorted(cookies_payload, key=key) != sorted(read_back, key=key):
                 logging.warning(self.LOG_SAVE_VERIFY_FAILED)
         except Exception as e:
             logging.warning(
