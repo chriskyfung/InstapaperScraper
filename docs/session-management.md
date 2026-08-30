@@ -66,7 +66,9 @@ Design notes:
 - The JSON payload is **immune to special characters in cookie values**.
   The legacy v1 format (`name:value:domain` per line) truncated any value
   containing `:`; v1 files are still read for backward compatibility and are
-  upgraded to v2 on the next save.
+  upgraded to v2 on the next save. Malformed cookie entries in a v2
+  payload are skipped with a warning, so a single bad entry cannot
+  invalidate the rest of the session.
 - After every save, a **round-trip self-check** decrypts and re-parses the
   file and compares it with what was written. A mismatch is logged loudly at
   write time instead of surfacing later as a mysterious 401.

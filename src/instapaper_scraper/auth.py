@@ -100,6 +100,9 @@ class InstapaperAuthenticator:
     LOG_MALFORMED_COOKIE_LINE = (
         "Skipping malformed cookie line in session file (expected name:value:domain)."
     )
+    LOG_MALFORMED_COOKIE_ENTRY = (
+        "Skipping malformed cookie entry in v2 session payload."
+    )
     LOG_LEGACY_SESSION_FORMAT = (
         "Session file uses the legacy line format; it will be upgraded "
         "to JSON on the next save."
@@ -220,11 +223,31 @@ class InstapaperAuthenticator:
             payload = None
 
         if isinstance(payload, dict) and isinstance(payload.get("cookies"), list):
-            return [
-                cookie
-                for cookie in payload["cookies"]
-                if isinstance(cookie, dict) and "name" in cookie and "value" in cookie
-            ]
+            cookies_v2: list[dict[str, Any]] = []
+            for cookie in payload["cookies"]:
+                if not isinstance(cookie, dict):
+                    logging.warning(self.LOG_MALFORMED_COOKIE_ENTRY)
+                    continue
+
+                name = cookie.get("name")
+                value = cookie.get("value")
+                domain = cookie.get("domain")
+                if not all(isinstance(field, str) for field in (name, value, domain)):
+                    # Skip the entry, not the file: one malformed
+                    # non-auth cookie must not destroy a valid session.
+                    logging.warning(self.LOG_MALFORMED_COOKIE_ENTRY)
+                    continue
+
+                cookies_v2.append(
+                    {
+                        "name": name,
+                        "value": value,
+                        "domain": domain,
+                        "path": cookie.get("path", "/"),
+                        "secure": bool(cookie.get("secure", False)),
+                    }
+                )
+            return cookies_v2
 
         # Legacy v1 line format.
         logging.info(self.LOG_LEGACY_SESSION_FORMAT)

@@ -813,3 +813,69 @@ def test_verification_debug_log_is_redacted(authenticator, caplog):
     assert "pfus=supe...alue" in debug_text
     assert "body_bytes=" in debug_text
     assert "body=" not in debug_text
+
+
+def test_v2_payload_missing_domain_skips_entry_not_file(authenticator, session_file):
+    """One malformed v2 entry (missing domain) is skipped with a warning;
+    the valid cookies still load and the session file is NOT deleted."""
+    payload = (
+        '{"version": 2, "cookies": ['
+        '{"name": "_ga", "value": "GA1"},'
+        '{"name": "pfus", "value": "u1", "domain": ".instapaper.com"},'
+        '{"name": "pfps", "value": "p1", "domain": ".instapaper.com"},'
+        '{"name": "pfhs", "value": "h1", "domain": ".instapaper.com"}'
+        "]}"
+    )
+    encrypted = authenticator.fernet.encrypt(payload.encode("utf-8"))
+    session_file.write_bytes(encrypted)
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "me", "form_key": "k"}},
+        )
+        assert authenticator._load_session() is True
+
+    assert authenticator.session.cookies.get("pfus") == "u1"
+    # The malformed entry was skipped, and the file survives.
+    assert session_file.exists()
+
+
+def test_v2_payload_non_string_fields_skipped(authenticator, session_file, caplog):
+    """Entries with non-string name/value/domain are skipped with a warning."""
+    payload = (
+        '{"version": 2, "cookies": ['
+        '{"name": 123, "value": "v", "domain": ".instapaper.com"},'
+        '{"name": "pfus", "value": null, "domain": ".instapaper.com"},'
+        '{"name": "pfus", "value": "u1", "domain": ".instapaper.com"}'
+        "]}"
+    )
+    encrypted = authenticator.fernet.encrypt(payload.encode("utf-8"))
+    session_file.write_bytes(encrypted)
+
+    with requests_mock.Mocker() as m:
+        m.get(
+            INSTAPAPER_USER_SESSION_URL,
+            json={"user": {"username": "me", "form_key": "k"}},
+        )
+        with caplog.at_level(logging.WARNING):
+            assert authenticator._load_session() is True
+            assert caplog.text.count("malformed cookie entry") == 2
+    assert authenticator.session.cookies.get("pfus") == "u1"
+
+
+def test_dump_session_tolerates_malformed_v2_entries(authenticator, session_file):
+    """dump_session reports only the valid entries when a v2 payload
+    contains malformed ones."""
+    payload = (
+        '{"version": 2, "cookies": ['
+        '{"name": "_ga", "value": "GA1"},'
+        '{"name": "pfus", "value": "abcdefghijklmnop", '
+        '"domain": ".instapaper.com"}'
+        "]}"
+    )
+    encrypted = authenticator.fernet.encrypt(payload.encode("utf-8"))
+    session_file.write_bytes(encrypted)
+
+    lines = authenticator.dump_session()
+    assert lines == ["pfus=abcd...mnop (.instapaper.com)"]
