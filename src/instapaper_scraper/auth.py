@@ -15,6 +15,7 @@ from .constants import (
     INSTAPAPER_USER_SESSION_URL,
     XHR_HEADERS,
 )
+from .exceptions import SessionLogoutError
 
 
 # --- Log Redaction Helper ---
@@ -191,8 +192,9 @@ class InstapaperAuthenticator:
                 missing, so it is kept by default.
 
         Returns:
-            True if a session file was removed successfully, False otherwise
-            (no session existed, or deletion failed).
+            True if a session file was removed successfully, False if no
+            session existed (idempotent no-op). Raises ``SessionLogoutError``
+            if a file could not be deleted due to a filesystem error.
         """
         self.session.cookies.clear()
         removed = False
@@ -205,7 +207,9 @@ class InstapaperAuthenticator:
                     self.session_file,
                     exc,
                 )
-                return False
+                raise SessionLogoutError(
+                    f"Failed to remove stored session file {self.session_file}: {exc}"
+                ) from exc
             logging.info(
                 self.LOG_LOGOUT_REMOVED_SESSION.format(session_file=self.session_file)
             )
@@ -222,7 +226,9 @@ class InstapaperAuthenticator:
                 logging.error(
                     "Failed to remove session key file %s: %s", self.key_file, exc
                 )
-                return removed
+                raise SessionLogoutError(
+                    f"Failed to remove session key file {self.key_file}: {exc}"
+                ) from exc
             logging.info(self.LOG_LOGOUT_REMOVED_KEY.format(key_file=self.key_file))
         return removed
 

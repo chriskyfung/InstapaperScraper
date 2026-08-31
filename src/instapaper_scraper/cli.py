@@ -16,7 +16,7 @@ from . import __version__
 from .api import InstapaperClient
 from .auth import InstapaperAuthenticator
 from .constants import CONFIG_DIR, SUPPORTED_FORMATS
-from .exceptions import InstapaperAPIError
+from .exceptions import InstapaperAPIError, SessionLogoutError
 from .output import save_articles
 
 # --- Constants ---
@@ -114,11 +114,32 @@ def _handle_auth_command(args: argparse.Namespace) -> None:
     )
 
     if args.logout:
-        authenticator.logout(purge_key=args.purge_key)
+        try:
+            authenticator.logout(purge_key=args.purge_key)
+        except SessionLogoutError as exc:
+            logging.error("%s", exc)
+            sys.exit(1)
         sys.exit(0)
 
     # --reauth
-    if not authenticator.force_login():
+    if (
+        args.reauth
+        and not args.username
+        and not args.password
+        and not sys.stdin.isatty()
+    ):
+        logging.error(
+            "Re-authentication requires credentials; pass --username/--password "
+            "or run in an interactive terminal."
+        )
+        sys.exit(1)
+
+    try:
+        reauthed = authenticator.force_login()
+    except SessionLogoutError as exc:
+        logging.error("%s", exc)
+        sys.exit(1)
+    if not reauthed:
         logging.error("Re-authentication failed. Check your credentials.")
         sys.exit(1)
     sys.exit(0)

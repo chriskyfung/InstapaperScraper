@@ -14,6 +14,7 @@ from instapaper_scraper.auth import (
     get_encryption_key,
 )
 from instapaper_scraper.constants import INSTAPAPER_USER_SESSION_URL
+from instapaper_scraper.exceptions import SessionLogoutError
 
 
 @pytest.fixture
@@ -949,7 +950,7 @@ def test_logout_clears_in_memory_cookies(authenticator, session_file):
 def test_logout_survives_unlink_failure(
     authenticator, session_file, monkeypatch, caplog
 ):
-    """A filesystem error during logout is logged, not raised, and returns False."""
+    """A filesystem error during logout raises SessionLogoutError, not crashes."""
     authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
     authenticator._save_session()
     assert session_file.exists()
@@ -960,7 +961,8 @@ def test_logout_survives_unlink_failure(
     monkeypatch.setattr(Path, "unlink", failing_unlink)
 
     with caplog.at_level(logging.ERROR):
-        assert authenticator.logout() is False
+        with pytest.raises(SessionLogoutError):
+            authenticator.logout()
     assert "Failed to remove stored session file" in caplog.text
 
 
