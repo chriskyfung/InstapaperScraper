@@ -197,7 +197,15 @@ class InstapaperAuthenticator:
         self.session.cookies.clear()
         removed = False
         if self.session_file.exists():
-            self.session_file.unlink()
+            try:
+                self.session_file.unlink()
+            except OSError as exc:
+                logging.error(
+                    "Failed to remove stored session file %s: %s",
+                    self.session_file,
+                    exc,
+                )
+                return False
             logging.info(
                 self.LOG_LOGOUT_REMOVED_SESSION.format(session_file=self.session_file)
             )
@@ -208,7 +216,13 @@ class InstapaperAuthenticator:
             )
 
         if purge_key and self.key_file.exists():
-            self.key_file.unlink()
+            try:
+                self.key_file.unlink()
+            except OSError as exc:
+                logging.error(
+                    "Failed to remove session key file %s: %s", self.key_file, exc
+                )
+                return removed
             logging.info(self.LOG_LOGOUT_REMOVED_KEY.format(key_file=self.key_file))
         return removed
 
