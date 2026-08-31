@@ -121,9 +121,10 @@ instapaper-scraper --logout --purge-key
 instapaper-scraper --reauth --username your_username
 ```
 
-> ⚠️ **Security note**: avoid passing `--password` on the command line — it is
-> visible in your shell history and in `ps`/process listings. Let the tool
-> prompt for the password interactively instead.
+> [!CAUTION]
+> Avoid passing `--password` on the command line — it is visible in your
+> shell history and in `ps`/process listings. Let the tool prompt for the
+> password interactively instead.
 
 Design notes:
 

@@ -192,7 +192,8 @@ You can also specify a folder directly using the `--folder` argument.
 
 Use `--logout` to end the stored session (e.g. before sharing a machine) and `--reauth` when credentials grow stale but the verifier does not flag the stored session file.
 
-> ⚠️ **Security note**: prefer the interactive password prompt over `--password` — passing secrets as CLI arguments exposes them in shell history and process listings.
+> [!CAUTION]
+> Prefer the interactive password prompt over `--password` — passing secrets as CLI arguments exposes them in shell history and process listings.
 
 ### 📄 Output Formats
 
