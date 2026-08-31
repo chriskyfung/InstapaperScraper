@@ -901,6 +901,65 @@ def test_dump_session_tolerates_malformed_v2_entries(authenticator, session_file
     assert lines == ["pfus=abcd...mnop (.instapaper.com)"]
 
 
+def test_logout_removes_session_file_but_keeps_key(
+    authenticator, session_file, key_file, caplog
+):
+    """logout deletes the session file but keeps the reusable key by default."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator._save_session()
+    assert session_file.exists()
+    assert key_file.exists()
+
+    with caplog.at_level(logging.INFO):
+        assert authenticator.logout() is True
+    assert not session_file.exists()
+    assert key_file.exists()
+    assert "Removed stored session file" in caplog.text
+
+
+def test_logout_with_purge_key_removes_both(authenticator, session_file, key_file):
+    """logout with purge_key=True also deletes the session key file."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator._save_session()
+    assert key_file.exists()
+
+    assert authenticator.logout(purge_key=True) is True
+    assert not session_file.exists()
+    assert not key_file.exists()
+
+
+def test_logout_idempotent_when_no_session(authenticator, session_file, caplog):
+    """logout with no stored session is a safe no-op returning False."""
+    assert not session_file.exists()
+    with caplog.at_level(logging.INFO):
+        assert authenticator.logout() is False
+    assert "No stored session found" in caplog.text
+
+
+def test_force_login_discards_stored_session_and_reauthenticates(
+    authenticator, session_file, monkeypatch, caplog
+):
+    """force_login deletes the stored session, clears cookies, and goes
+    straight to a fresh credential login (never reusing the stored session)."""
+    authenticator.session.cookies.set("pfus", "stale_user", domain=".instapaper.com")
+    authenticator._save_session()
+    assert session_file.exists()
+    assert authenticator.session.cookies.get("pfus") == "stale_user"
+
+    def fake_credential_login():
+        assert not session_file.exists()
+        assert authenticator.session.cookies.get("pfus") is None  # jar cleared
+        return True
+
+    monkeypatch.setattr(authenticator, "_login_with_credentials", fake_credential_login)
+    monkeypatch.setattr(authenticator, "_save_session", lambda: None)
+
+    with caplog.at_level(logging.INFO):
+        assert authenticator.force_login() is True
+    assert not session_file.exists()
+    assert "Discarding stored session" in caplog.text
+
+
 def test_self_check_distinguishes_same_name_different_path(
     authenticator, session_file, caplog
 ):
