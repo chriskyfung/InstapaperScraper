@@ -1,6 +1,7 @@
 import logging
 import stat
 import unittest.mock
+from pathlib import Path
 from unittest.mock import MagicMock
 from urllib.parse import parse_qs
 
@@ -934,6 +935,33 @@ def test_logout_idempotent_when_no_session(authenticator, session_file, caplog):
     with caplog.at_level(logging.INFO):
         assert authenticator.logout() is False
     assert "No stored session found" in caplog.text
+
+
+def test_logout_clears_in_memory_cookies(authenticator, session_file):
+    """logout also clears the in-memory cookie jar, not just the file."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator._save_session()
+
+    authenticator.logout()
+    assert authenticator.session.cookies.get("pfus") is None
+
+
+def test_logout_survives_unlink_failure(
+    authenticator, session_file, monkeypatch, caplog
+):
+    """A filesystem error during logout is logged, not raised, and returns False."""
+    authenticator.session.cookies.set("pfus", "u1", domain=".instapaper.com")
+    authenticator._save_session()
+    assert session_file.exists()
+
+    def failing_unlink(self):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "unlink", failing_unlink)
+
+    with caplog.at_level(logging.ERROR):
+        assert authenticator.logout() is False
+    assert "Failed to remove stored session file" in caplog.text
 
 
 def test_force_login_discards_stored_session_and_reauthenticates(
