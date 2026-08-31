@@ -183,6 +183,14 @@ You can also specify a folder directly using the `--folder` argument.
 | `--password <pass>` | Your Instapaper account password. |
 | `--[no-]read-url` | Includes the Instapaper read URL. (Old flag `--add-instapaper-url` is deprecated but supported). Can be set in `config.toml`. Overrides config. |
 | `--[no-]article-preview` | Includes the article preview text. (Old flag `--add-article-preview` is deprecated but supported). Can be set in `config.toml`. Overrides config. |
+| `--session-file <path>` | Path to the encrypted session file. |
+| `--key-file <path>` | Path to the session key file. |
+| `--dump-session` | Print a masked summary of the stored session cookies (for debugging) and exit. |
+| `--logout` | Delete the stored session file and exit. Combine with `--purge-key` to also delete the session key file. |
+| `--reauth` | Discard the stored session and force a fresh credential login, then exit. Credentials come from `--username`/`--password` or a prompt. |
+| `--purge-key` | With `--logout`, also delete the session key file. |
+
+Use `--logout` to end the stored session (e.g. before sharing a machine) and `--reauth` when credentials grow stale but the verifier does not flag the stored session file.
 
 ### 📄 Output Formats
 
