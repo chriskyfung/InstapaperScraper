@@ -86,15 +86,23 @@ def _resolve_session_paths(args: argparse.Namespace) -> tuple[Path, Path]:
 
 
 def _handle_auth_command(args: argparse.Namespace) -> None:
-    """Handles the standalone --logout and --reauth commands, then exits.
+    """Handles the standalone --logout and --reauth commands.
 
     Each command builds its own authenticator (mirroring --dump-session) so it
-    can run without loading the config or triggering a scrape. Callers must
-    ``sys.exit()`` after invoking this.
+    can run without loading the config or triggering a scrape. This function
+    always terminates the process via ``sys.exit()`` on every code path
+    (mutual-exclusivity error, logout, and both reauth outcomes) and never
+    returns.
     """
     if args.logout and args.reauth:
         logging.error("--logout and --reauth are mutually exclusive.")
         sys.exit(1)
+
+    if args.reauth and args.purge_key:
+        logging.warning(
+            "--purge-key has no effect with --reauth. Use `--logout --purge-key` "
+            "followed by `--reauth` for a full credential rotation."
+        )
 
     session_file, key_file = _resolve_session_paths(args)
     authenticator = InstapaperAuthenticator(

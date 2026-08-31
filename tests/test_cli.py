@@ -754,6 +754,19 @@ def test_cli_reauth_failure(mock_auth, monkeypatch, caplog):
     assert "Re-authentication failed" in caplog.text
 
 
+def test_cli_reauth_with_purge_key_warns(mock_auth, monkeypatch, caplog):
+    """--purge-key with --reauth warns it has no effect but still reauths."""
+    mock_auth.return_value.force_login.return_value = True
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--reauth", "--purge-key"])
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(SystemExit) as excinfo:
+            cli.main()
+    assert excinfo.value.code == 0
+    assert "has no effect with --reauth" in caplog.text
+    mock_auth.return_value.force_login.assert_called_once()
+
+
 def test_cli_logout_and_reauth_mutually_exclusive(mock_auth, monkeypatch, caplog):
     """--logoutand --reauth cannot be combined."""
     monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--logout", "--reauth"])
