@@ -188,9 +188,11 @@ You can also specify a folder directly using the `--folder` argument.
 | `--dump-session` | Print a masked summary of the stored session cookies (for debugging) and exit. |
 | `--logout` | Delete the stored session file and exit. Combine with `--purge-key` to also delete the session key file. |
 | `--reauth` | Discard the stored session and force a fresh credential login, then exit. Credentials come from `--username`/`--password` or a prompt. |
-| `--purge-key` | With `--logout`, also delete the session key file. |
+| `--purge-key` | With `--logout`, also delete the session key file. Has no effect with `--reauth`. |
 
 Use `--logout` to end the stored session (e.g. before sharing a machine) and `--reauth` when credentials grow stale but the verifier does not flag the stored session file.
+
+> ⚠️ **Security note**: prefer the interactive password prompt over `--password` — passing secrets as CLI arguments exposes them in shell history and process listings.
 
 ### 📄 Output Formats
 

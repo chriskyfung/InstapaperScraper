@@ -117,15 +117,19 @@ instapaper-scraper --logout
 instapaper-scraper --logout --purge-key
 
 # Discard the stored session and force a fresh credential login now.
-# Credentials come from --username/--password or an interactive prompt.
-instapaper-scraper --reauth --username your_username --password your_password
+# The password is requested interactively (recommended — see note below).
+instapaper-scraper --reauth --username your_username
 ```
+
+> ⚠️ **Security note**: avoid passing `--password` on the command line — it is
+> visible in your shell history and in `ps`/process listings. Let the tool
+> prompt for the password interactively instead.
 
 Design notes:
 
 - **No manual file deletion needed**: `--logout` removes the stored session
-  filethrough the same path-resolution logic as the scraper (`--session-file` /
-  `--key-file` overrides, then the working directory, then the user config
+  file through the same path-resolution logic as the scraper (`--session-file`
+  / `--key-file` overrides, then the working directory, then the user config
   directory), so it always addresses the exact file that would be reused.
 - **`--logout` is idempotent**: if no session file exists, it is a no-op
   that exits with code 0, safe for scripts and CI.
@@ -137,9 +141,10 @@ Design notes:
   session, rather than waiting for you to run the scraper again. This
   unblocks the "stale session file that the verifier does not flag" case.
 - **Mutually exclusive**: `--logout` and `--reauth` cannot be combined.
+  `--purge-key` only applies to `--logout`; combining it with `--reauth`
+  prints a warning and has no effect.
 
 
-## User-Agent configuration
 ## User-Agent configuration
 
 The default `python-requests` User-Agent can be rejected by anti-bot layers
