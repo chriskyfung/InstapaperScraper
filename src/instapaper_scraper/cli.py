@@ -70,9 +70,8 @@ def load_config(config_path_str: str | None = None) -> dict[str, Any] | None:
     return None
 
 
-def _dump_stored_session(args: argparse.Namespace) -> None:
-    """Prints a masked summary of the stored session cookies and exits."""
-    session = requests.Session()
+def _resolve_session_paths(args: argparse.Namespace) -> tuple[Path, Path]:
+    """Resolves the session and key file paths honoring CLI overrides."""
     session_file = _resolve_path(
         args.session_file,
         DEFAULT_SESSION_FILENAME,
@@ -83,6 +82,44 @@ def _dump_stored_session(args: argparse.Namespace) -> None:
         DEFAULT_KEY_FILENAME,
         CONFIG_DIR / DEFAULT_KEY_FILENAME,
     )
+    return session_file, key_file
+
+
+def _handle_auth_command(args: argparse.Namespace) -> None:
+    """Handles the standalone --logout and --reauth commands, then exits.
+
+    Each command builds its own authenticator (mirroring --dump-session) so it
+    can run without loading the config or triggering a scrape. Callers must
+    ``sys.exit()`` after invoking this.
+    """
+    if args.logout and args.reauth:
+        logging.error("--logout and --reauth are mutually exclusive.")
+        sys.exit(1)
+
+    session_file, key_file = _resolve_session_paths(args)
+    authenticator = InstapaperAuthenticator(
+        requests.Session(),
+        session_file=session_file,
+        key_file=key_file,
+        username=args.username,
+        password=args.password,
+    )
+
+    if args.logout:
+        authenticator.logout(purge_key=args.purge_key)
+        sys.exit(0)
+
+    # --reauth
+    if not authenticator.force_login():
+        logging.error("Re-authentication failed. Check your credentials.")
+        sys.exit(1)
+    sys.exit(0)
+
+
+def _dump_stored_session(args: argparse.Namespace) -> None:
+    """Prints a masked summary of the stored session cookies and exits."""
+    session = requests.Session()
+    session_file, key_file = _resolve_session_paths(args)
     authenticator = InstapaperAuthenticator(
         session,
         session_file=session_file,
@@ -126,6 +163,23 @@ def main() -> None:
     parser.add_argument("--session-file", help="Path to the encrypted session file.")
     parser.add_argument("--key-file", help="Path to the session key file.")
     parser.add_argument(
+        "--logout",
+        action="store_true",
+        help="Delete the stored session file and exit. Combine with --purge-key "
+        "to also delete the session key file.",
+    )
+    parser.add_argument(
+        "--reauth",
+        action="store_true",
+        help="Discard the stored session and force a fresh credential login, "
+        "then exit. Credentials come from --username/--password or a prompt.",
+    )
+    parser.add_argument(
+        "--purge-key",
+        action="store_true",
+        help="With --logout, also delete the session key file.",
+    )
+    parser.add_argument(
         "--dump-session",
         action="store_true",
         help="Print a masked summary of the stored session cookies and exit "
@@ -162,6 +216,10 @@ def main() -> None:
     if args.dump_session:
         _dump_stored_session(args)
         sys.exit(0)
+
+    if args.logout or args.reauth:
+        _handle_auth_command(args)
+        # _handle_auth_command always exits.
 
     config = load_config(args.config_path)
     folders = config.get("folders", []) if config else []

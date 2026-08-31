@@ -137,6 +137,12 @@ class InstapaperAuthenticator:
     )
     LOG_NO_KNOWN_COOKIE_TO_SAVE = "Could not find a known session cookie to save."
     LOG_SAVED_SESSION = "Saved encrypted session to {session_file}."
+    LOG_LOGOUT_REMOVED_SESSION = "Removed stored session file {session_file}."
+    LOG_LOGOUT_REMOVED_KEY = "Removed session key file {key_file}."
+    LOG_LOGOUT_NO_SESSION = (
+        "No stored session found at {session_file}; nothing to remove."
+    )
+    LOG_FORCE_LOGIN = "Discarding stored session and forcing a fresh credential login."
 
     def __init__(
         self,
@@ -172,6 +178,53 @@ class InstapaperAuthenticator:
             return True
 
         return False
+
+    def logout(self, purge_key: bool = False) -> bool:
+        """Deletes the stored session file, and optionally the key file.
+
+        This is the user-facing way to end a session without manually removing
+        files. It is idempotent: calling it with no stored session is a no-op.
+
+        Args:
+            purge_key: When True, also delete the session key file. The key is
+                reusable across sessions and is regenerated automatically if
+                missing, so it is kept by default.
+
+        Returns:
+            True if a session file was removed, False if none existed.
+        """
+        removed = False
+        if self.session_file.exists():
+            self.session_file.unlink()
+            logging.info(
+                self.LOG_LOGOUT_REMOVED_SESSION.format(session_file=self.session_file)
+            )
+            removed = True
+        else:
+            logging.info(
+                self.LOG_LOGOUT_NO_SESSION.format(session_file=self.session_file)
+            )
+
+        if purge_key and self.key_file.exists():
+            self.key_file.unlink()
+            logging.info(self.LOG_LOGOUT_REMOVED_KEY.format(key_file=self.key_file))
+        return removed
+
+    def force_login(self) -> bool:
+        """Discards any stored session and performs a fresh credential login.
+
+        Clears the in-memory cookie jar and removes the persisted session file
+        so the normal ``login()`` path cannot reuse a stale session, then logs
+        in with credentials (constructor args or interactive prompts) and saves
+        the new session.
+
+        Returns:
+            True if the fresh credential login succeeded.
+        """
+        logging.info(self.LOG_FORCE_LOGIN)
+        self.logout()
+        self.session.cookies.clear()
+        return self.login()
 
     def _load_session(self) -> bool:
         """Tries to load and verify a session from the session file."""
