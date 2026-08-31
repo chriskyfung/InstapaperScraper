@@ -214,16 +214,11 @@ class InstapaperAuthenticator:
         """Discards any stored session and performs a fresh credential login.
 
         Clears the in-memory cookie jar and removes the persisted session file
-        so the normal ``login()`` path cannot reuse a stale session, then logs
-        in with credentials (constructor args or interactive prompts) and saves
-        the new session.
-
-        Returns:
-            True if the fresh credential login succeeded.
+        (via ``logout()``) so the normal ``login()`` path cannot reuse a stale
+        session, then logs in with credentials and saves the new session.
         """
         logging.info(self.LOG_FORCE_LOGIN)
         self.logout()
-        self.session.cookies.clear()
         return self.login()
 
     def _load_session(self) -> bool:
