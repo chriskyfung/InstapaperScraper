@@ -191,8 +191,10 @@ class InstapaperAuthenticator:
                 missing, so it is kept by default.
 
         Returns:
-            True if a session file was removed, False if none existed.
+            True if a session file was removed successfully, False otherwise
+            (no session existed, or deletion failed).
         """
+        self.session.cookies.clear()
         removed = False
         if self.session_file.exists():
             self.session_file.unlink()
