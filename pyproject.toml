@@ -26,11 +26,8 @@ dependencies = [
     "certifi>=2025.11.12,<2026.8.0",
     "charset-normalizer>=3.4.3,<3.6.0",
     "cryptography>=50.0.0,<51.0.0",
-    "guara~=0.0.14",
     "idna~=3.11",
-    "python-dotenv~=1.2.1",
     "requests>=2.33.1,<2.35.0",
-    "typing_extensions>=4.15,<4.17",
     "urllib3>=2.6.3,<2.8.0",
     "tomli~=2.0.1; python_version < '3.11'",
 ]
