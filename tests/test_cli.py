@@ -6,6 +6,7 @@ import pytest
 import requests
 
 from instapaper_scraper import cli
+from instapaper_scraper.exceptions import SessionLogoutError
 
 
 @pytest.fixture
@@ -679,3 +680,144 @@ def test_cli_dump_session(mock_auth, monkeypatch, capsys, caplog):
     assert called_kwargs.get("key_file") == Path("my_key.file")
     # dump_session was called and no scraping happened (no save_articles).
     mock_auth.return_value.dump_session.assert_called_once()
+
+
+def test_cli_logout(mock_auth, monkeypatch, capsys):
+    """--logout deletes the stored session file and exits without scraping."""
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "instapaper-scraper",
+            "--logout",
+            "--session-file",
+            "my_session.file",
+            "--key-file",
+            "my_key.file",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 0
+
+    called_kwargs = mock_auth.call_args[1]
+    assert called_kwargs.get("session_file") == Path("my_session.file")
+    assert called_kwargs.get("key_file") == Path("my_key.file")
+    mock_auth.return_value.logout.assert_called_once_with(purge_key=False)
+    mock_auth.return_value.login.assert_not_called()
+    mock_auth.return_value.dump_session.assert_not_called()
+
+
+def test_cli_logout_with_purge_key(mock_auth, monkeypatch):
+    """--logout --purge-key also deletes the session key file."""
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "instapaper-scraper",
+            "--logout",
+            "--purge-key",
+            "--session-file",
+            "my_session.file",
+            "--key-file",
+            "my_key.file",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 0
+    mock_auth.return_value.logout.assert_called_once_with(purge_key=True)
+
+
+def test_cli_reauth_success(mock_auth, monkeypatch):
+    """--reauth force-logs in and exits 0 without a normal login or scrape."""
+    mock_auth.return_value.force_login.return_value = True
+    monkeypatch.setattr(
+        "sys.argv",
+        ["instapaper-scraper", "--reauth", "--username", "u", "--password", "p"],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 0
+    mock_auth.return_value.force_login.assert_called_once()
+    mock_auth.return_value.login.assert_not_called()
+
+
+def test_cli_reauth_failure(mock_auth, monkeypatch, caplog):
+    """--reauth exits with code 1 when the fresh login fails."""
+    mock_auth.return_value.force_login.return_value = False
+    monkeypatch.setattr(
+        "sys.argv",
+        ["instapaper-scraper", "--reauth", "--username", "u", "--password", "p"],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 1
+    assert "Re-authentication failed" in caplog.text
+
+
+def test_cli_reauth_with_purge_key_warns(mock_auth, monkeypatch, caplog):
+    """--purge-key with --reauth warns it has no effect but still reauths."""
+    mock_auth.return_value.force_login.return_value = True
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "instapaper-scraper",
+            "--reauth",
+            "--purge-key",
+            "--username",
+            "u",
+            "--password",
+            "p",
+        ],
+    )
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(SystemExit) as excinfo:
+            cli.main()
+    assert excinfo.value.code == 0
+    assert "has no effect with --reauth" in caplog.text
+    mock_auth.return_value.force_login.assert_called_once()
+
+
+def test_cli_logout_failure_exits_nonzero(mock_auth, monkeypatch, caplog):
+    """--logout exits with code 1 when the session file cannot be deleted."""
+    mock_auth.return_value.logout.side_effect = SessionLogoutError(
+        "Failed to remove stored session file /x: Permission denied"
+    )
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--logout"])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cli.main()
+    assert excinfo.value.code == 1
+    assert "Failed to remove stored session file" in caplog.text
+
+
+def test_cli_reauth_non_tty_without_credentials_fails_fast(
+    mock_auth, monkeypatch, caplog
+):
+    """--reauth without credentials in a non-TTY context exits 1 instead of
+    hanging on an interactive prompt."""
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--reauth"])
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(SystemExit) as excinfo:
+            cli.main()
+    assert excinfo.value.code == 1
+    assert "requires credentials" in caplog.text
+    mock_auth.return_value.force_login.assert_not_called()
+
+
+def test_cli_logout_and_reauth_mutually_exclusive(mock_auth, monkeypatch, caplog):
+    """--logout and --reauth cannot be combined."""
+    monkeypatch.setattr("sys.argv", ["instapaper-scraper", "--logout", "--reauth"])
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main()
+    assert excinfo.value.code == 1
+    assert "mutually exclusive" in caplog.text
+    mock_auth.assert_not_called()

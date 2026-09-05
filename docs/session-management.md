@@ -102,6 +102,50 @@ the URL, status code, content type, response body size, and the outgoing
 values and the response body (which contains the `form_key`) are never
 logged; use `--dump-session` for a masked value comparison instead.
 
+## Session lifecycle: logout and re-authentication
+
+In normal use, the stored session is reused automatically on every run and
+re-created when it expires or fails verification. When you want to end or
+replace the stored session explicitly, use the two dedicated CLI commands:
+
+```sh
+# End the stored session (removes .instapaper_session; keeps the reusable
+# .session_key key file, which is regenerated automatically if missing).
+instapaper-scraper --logout
+
+# Also remove the encryption key file (full cleanup).
+instapaper-scraper --logout --purge-key
+
+# Discard the stored session and force a fresh credential login now.
+# The password is requested interactively (recommended — see note below).
+instapaper-scraper --reauth --username your_username
+```
+
+> [!CAUTION]
+> Avoid passing `--password` on the command line — it is visible in your
+> shell history and in `ps`/process listings. Let the tool prompt for the
+> password interactively instead.
+
+Design notes:
+
+- **No manual file deletion needed**: `--logout` removes the stored session
+  file through the same path-resolution logic as the scraper (`--session-file`
+  / `--key-file` overrides, then the working directory, then the user config
+  directory), so it always addresses the exact file that would be reused.
+- **`--logout` is idempotent**: if no session file exists, it is a no-op
+  that exits with code 0, safe for scripts and CI.
+- **The key file is kept by default**: the Fernet key is reusable across
+  sessions and is regenerated automatically if missing; use `--purge-key` to
+  also remove it, e.g. when sharing a machine or for a full cleanup.
+- **`--reauth` forces a fresh credential login**: it discards the stored session
+  (same as `--logout`) and immediately re-authenticates, saving the new
+  session, rather than waiting for you to run the scraper again. This
+  unblocks the "stale session file that the verifier does not flag" case.
+- **Mutually exclusive**: `--logout` and `--reauth` cannot be combined.
+  `--purge-key` only applies to `--logout`; combining it with `--reauth`
+  prints a warning and has no effect.
+
+
 ## User-Agent configuration
 
 The default `python-requests` User-Agent can be rejected by anti-bot layers
@@ -136,7 +180,7 @@ instapaper-scraper --dump-session
 
 | Log message | Meaning | Action |
 | --- | --- | --- |
-| `returned status 401` (both attempts) | Stored cookie values are stale, rotated or corrupted | Use `--dump-session` to compare the stored cookie values against your browser's DevTools; then delete `.instapaper_session` and `.session_key`, log in once, and the next run should reuse the fresh session |
+| `returned status 401` (both attempts) | Stored cookie values are stale, rotated or corrupted | Use `--dump-session` to compare the stored cookie values against your browser DevTools; then run `instapaper-scraper --reauth` to discard the stale session and log in fresh (or `--logout` then run normally). |
 | `no user object in /data/user_session response` | Server answered but does not consider the session logged in | Same as above; if it persists with fresh values, compare `--dump-session` output with the browser |
 | `did not return JSON` | The endpoint returned HTML (its behavior changed) | Open an issue; the endpoint contract likely changed again |
 | `Session verified with minimal cookie set` (INFO) | The full jar interfered (likely a stale `_xsrf`) | Harmless; report if it happens on every run |

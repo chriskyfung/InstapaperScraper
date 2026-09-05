@@ -15,6 +15,7 @@ from .constants import (
     INSTAPAPER_USER_SESSION_URL,
     XHR_HEADERS,
 )
+from .exceptions import SessionLogoutError
 
 
 # --- Log Redaction Helper ---
@@ -137,6 +138,12 @@ class InstapaperAuthenticator:
     )
     LOG_NO_KNOWN_COOKIE_TO_SAVE = "Could not find a known session cookie to save."
     LOG_SAVED_SESSION = "Saved encrypted session to {session_file}."
+    LOG_LOGOUT_REMOVED_SESSION = "Removed stored session file {session_file}."
+    LOG_LOGOUT_REMOVED_KEY = "Removed session key file {key_file}."
+    LOG_LOGOUT_NO_SESSION = (
+        "No stored session found at {session_file}; nothing to remove."
+    )
+    LOG_FORCE_LOGIN = "Discarding stored session and forcing a fresh credential login."
 
     def __init__(
         self,
@@ -172,6 +179,69 @@ class InstapaperAuthenticator:
             return True
 
         return False
+
+    def logout(self, purge_key: bool = False) -> bool:
+        """Deletes the stored session file, and optionally the key file.
+
+        This is the user-facing way to end a session without manually removing
+        files. It is idempotent: calling it with no stored session is a no-op.
+
+        Args:
+            purge_key: When True, also delete the session key file. The key is
+                reusable across sessions and is regenerated automatically if
+                missing, so it is kept by default.
+
+        Returns:
+            True if a session file was removed successfully, False if no
+            session existed (idempotent no-op). Raises ``SessionLogoutError``
+            if a file could not be deleted due to a filesystem error.
+        """
+        self.session.cookies.clear()
+        removed = False
+        if self.session_file.exists():
+            try:
+                self.session_file.unlink()
+            except OSError as exc:
+                logging.error(
+                    "Failed to remove stored session file %s: %s",
+                    self.session_file,
+                    exc,
+                )
+                raise SessionLogoutError(
+                    f"Failed to remove stored session file {self.session_file}: {exc}"
+                ) from exc
+            logging.info(
+                self.LOG_LOGOUT_REMOVED_SESSION.format(session_file=self.session_file)
+            )
+            removed = True
+        else:
+            logging.info(
+                self.LOG_LOGOUT_NO_SESSION.format(session_file=self.session_file)
+            )
+
+        if purge_key and self.key_file.exists():
+            try:
+                self.key_file.unlink()
+            except OSError as exc:
+                logging.error(
+                    "Failed to remove session key file %s: %s", self.key_file, exc
+                )
+                raise SessionLogoutError(
+                    f"Failed to remove session key file {self.key_file}: {exc}"
+                ) from exc
+            logging.info(self.LOG_LOGOUT_REMOVED_KEY.format(key_file=self.key_file))
+        return removed
+
+    def force_login(self) -> bool:
+        """Discards any stored session and performs a fresh credential login.
+
+        Clears the in-memory cookie jar and removes the persisted session file
+        (via ``logout()``) so the normal ``login()`` path cannot reuse a stale
+        session, then logs in with credentials and saves the new session.
+        """
+        logging.info(self.LOG_FORCE_LOGIN)
+        self.logout()
+        return self.login()
 
     def _load_session(self) -> bool:
         """Tries to load and verify a session from the session file."""
