@@ -28,7 +28,7 @@ dependencies = [
     "cryptography>=50.0.0,<51.0.0",
     "idna~=3.11",
     "requests>=2.33.1,<2.35.0",
-    "urllib3>=2.6.3,<2.8.0",
+    "urllib3>=2.6.3,<2.9.0",
     "tomli~=2.0.1; python_version < '3.11'",
 ]
 
