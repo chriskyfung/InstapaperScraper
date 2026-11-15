@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-11-15
+
+### Added
+- **`--logout` CLI flag**: Deletes the stored session file (and optionally the
+  session key file with `--purge-key`) to end a session without manually
+  removing files. Idempotent — safe to run when no session exists.
+- **`--reauth` CLI flag**: Discards any stored session and performs a fresh
+  credential login, then continues with the requested scrape.
+- **`--purge-key` flag**: With `--logout`, also delete the session key file.
+- **`InstapaperAuthenticator.logout(purge_key=False)`**: Public method to
+  delete the stored session file (and optionally the key file); idempotent.
+- **`InstapaperAuthenticator.force_login()`**: Discards the stored session and
+  performs a fresh credential login, saving the new session.
+- **Session lifecycle documentation**: Added `docs/session-management.md`
+  describing login → logout → re-authentication, and updated `README.md` with
+  a session-lifecycle section.
+
+### Changed
+- **Session management**: Split explicit session-lifecycle handling into
+  `logout()` and `force_login()` methods separate from the generic `login()`
+  path, enabling clean programmatic and CLI-level session invalidation without
+  manually deleting files.
+- **Documentation**: Updated `README.md` and `docs/session-management.md` to
+  document the new `--logout`/`--reauth` session lifecycle flags.
+
+### Fixed
+- None.
+
+### Chore
+- **Dependencies**:
+  - Updated the `pytest` development requirement (#122).
 ## [1.4.1] - 2026-09-06
 
 ### Fixed
